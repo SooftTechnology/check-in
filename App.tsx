@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { MonthlyReview, SatisfactionLevel } from './types';
 import { SATISFACTION_EMOJIS } from './constants';
