@@ -40,6 +40,17 @@ jobs:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           VITE_GOOGLE_SCRIPT_URL: ${{ secrets.VITE_GOOGLE_SCRIPT_URL }}
 
+      - name: Debug - Verify environment variables
+        run: |
+          echo "Repository: ${{ github.repository }}"
+          echo "Base path should be: /$(echo ${{ github.repository }} | cut -d'/' -f2)/"
+          if [ -z "${{ secrets.VITE_GOOGLE_SCRIPT_URL }}" ]; then
+            echo "⚠️ WARNING: VITE_GOOGLE_SCRIPT_URL secret is not configured!"
+            echo "   Configure it in: Settings → Secrets and variables → Actions"
+          else
+            echo "✅ VITE_GOOGLE_SCRIPT_URL is configured"
+          fi
+
       - name: Debug - Show base path and HTML
         run: |
           echo "Repository: ${{ github.repository }}"

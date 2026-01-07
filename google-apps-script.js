@@ -63,8 +63,16 @@ function appendToSheet(data) {
     // Si la hoja no existe, crearla
     if (!sheet) {
       sheet = spreadsheet.insertSheet(SHEET_NAME);
-      // Agregar encabezados si es la primera vez
-      sheet.appendRow([
+    }
+    
+    // Verificar si el header existe (si la primera fila está vacía o no tiene el header esperado)
+    const firstRow = sheet.getRange(1, 1, 1, 8).getValues()[0];
+    const hasHeader = firstRow[0] === 'Email' || firstRow[0] === '';
+    
+    // Si no hay header, agregarlo
+    if (!hasHeader || sheet.getLastRow() === 0) {
+      sheet.insertRowBefore(1);
+      sheet.getRange(1, 1, 1, 8).setValues([[
         'Email',
         'Completitud (%)',
         'Bugs',
@@ -73,7 +81,7 @@ function appendToSheet(data) {
         'Timestamp',
         'Month ID',
         'Month Name'
-      ]);
+      ]]);
       // Formatear encabezados
       const headerRange = sheet.getRange(1, 1, 1, 8);
       headerRange.setFontWeight('bold');
