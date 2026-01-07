@@ -49,6 +49,7 @@ jobs:
             echo "   Configure it in: Settings → Secrets and variables → Actions"
           else
             echo "✅ VITE_GOOGLE_SCRIPT_URL is configured"
+            echo "   URL length: $(echo -n '${{ secrets.VITE_GOOGLE_SCRIPT_URL }}' | wc -c) characters"
           fi
 
       - name: Debug - Show base path and HTML
@@ -57,6 +58,14 @@ jobs:
           echo "Base path should be: /$(echo ${{ github.repository }} | cut -d'/' -f2)/"
           echo "--- HTML content ---"
           head -25 dist/index.html || cat dist/index.html
+          echo ""
+          echo "--- Checking for Google Script URL in built files ---"
+          if grep -q "script.google.com" dist/assets/*.js 2>/dev/null; then
+            echo "✅ Google Script URL found in built files"
+          else
+            echo "⚠️ WARNING: Google Script URL not found in built files"
+            echo "   This might mean the variable wasn't injected during build"
+          fi
 
       - name: Create 404.html for SPA routing
         run: cp dist/index.html dist/404.html
