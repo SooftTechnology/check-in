@@ -17,6 +17,13 @@ export default defineConfig(({ mode }) => {
       // Permitir override manual para testing local
       base = process.env.VITE_BASE_PATH;
     }
+    
+    // Log para debugging en CI
+    if (process.env.GITHUB_ACTIONS) {
+      console.log(`[Vite Config] GITHUB_REPOSITORY: ${process.env.GITHUB_REPOSITORY}`);
+      console.log(`[Vite Config] Base path: ${base}`);
+    }
+    
     return {
       base,
       server: {

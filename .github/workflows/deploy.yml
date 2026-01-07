@@ -39,6 +39,13 @@ jobs:
           GITHUB_REPOSITORY: ${{ github.repository }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
+      - name: Debug - Show base path and HTML
+        run: |
+          echo "Repository: ${{ github.repository }}"
+          echo "Base path should be: /$(echo ${{ github.repository }} | cut -d'/' -f2)/"
+          echo "--- HTML content ---"
+          head -25 dist/index.html || cat dist/index.html
+
       - name: Create 404.html for SPA routing
         run: cp dist/index.html dist/404.html
 
