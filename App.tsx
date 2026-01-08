@@ -17,6 +17,7 @@ const App: React.FC = () => {
   const [insight, setInsight] = useState<string | null>(null);
   const [allReviews, setAllReviews] = useState<MonthlyReview[]>([]);
   const [alreadyDoneThisMonth, setAlreadyDoneThisMonth] = useState(false);
+  const [isCheckingStatus, setIsCheckingStatus] = useState(true);
 
   const currentMonthId = new Date().toISOString().slice(0, 7);
   const currentMonthName = new Date().toLocaleString('es-ES', { month: 'long', year: 'numeric' });
@@ -25,9 +26,11 @@ const App: React.FC = () => {
     const checkStatus = async () => {
       if (!userEmail) {
         setAlreadyDoneThisMonth(false);
+        setIsCheckingStatus(false);
         return;
       }
       
+      setIsCheckingStatus(true);
       console.log('🔍 Verificando estado para:', { email: userEmail, monthId: currentMonthId });
       
       // Cargar desde localStorage (caché local para UI rápida)
@@ -80,6 +83,8 @@ const App: React.FC = () => {
         // Si falla la verificación en Google Sheets, usar localStorage como fallback
         console.warn('⚠️ No se pudo verificar en Google Sheets, usando localStorage como fallback:', error);
         setAlreadyDoneThisMonth(hasDoneLocal);
+      } finally {
+        setIsCheckingStatus(false);
       }
     };
     
@@ -179,6 +184,24 @@ const App: React.FC = () => {
               Ingresar
             </button>
           </form>
+        </div>
+      </div>
+    );
+  }
+
+  // Mostrar spinner mientras se verifica el estado
+  if (isCheckingStatus) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6">
+        <div className="max-w-md w-full bg-white rounded-3xl shadow-xl p-8 text-center">
+          <div className="w-16 h-16 bg-indigo-100 rounded-2xl flex items-center justify-center mx-auto mb-6 animate-pulse">
+            <i className="fa-solid fa-rocket text-3xl text-indigo-600"></i>
+          </div>
+          <h1 className="text-2xl font-bold text-slate-800 mb-2">Verificando estado...</h1>
+          <p className="text-slate-500 text-sm">Comprobando si ya completaste este mes</p>
+          <div className="mt-6">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-4 border-indigo-600 border-t-transparent"></div>
+          </div>
         </div>
       </div>
     );
