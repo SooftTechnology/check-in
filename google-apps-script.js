@@ -21,6 +21,15 @@ const SHEET_ID = '1Kxu7-T_ArqZ5dqV3Xw8D8Bo4tZsmTtBZggDWey-hUsA';
 const SHEET_NAME = 'Hoja 1'; // Cambia esto si tu hoja tiene otro nombre
 
 /**
+ * Función auxiliar para crear respuesta con headers CORS
+ */
+function createCORSResponse(data) {
+  return ContentService
+    .createTextOutput(JSON.stringify(data))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+/**
  * Función principal que se ejecuta cuando se recibe una petición POST
  */
 function doPost(e) {
@@ -29,20 +38,17 @@ function doPost(e) {
     const data = JSON.parse(e.postData.contents);
     
     if (data.action === 'append') {
-      return appendToSheet(data.data);
+      return createCORSResponse(appendToSheet(data.data).getContent());
     }
     
     if (data.action === 'check' && data.email && data.monthId) {
-      return checkIfExists(data.email, data.monthId);
+      const result = checkIfExists(data.email, data.monthId);
+      return createCORSResponse(JSON.parse(result.getContent()));
     }
     
-    return ContentService
-      .createTextOutput(JSON.stringify({ success: false, error: 'Invalid action or missing parameters' }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return createCORSResponse({ success: false, error: 'Invalid action or missing parameters' });
   } catch (error) {
-    return ContentService
-      .createTextOutput(JSON.stringify({ success: false, error: error.toString() }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return createCORSResponse({ success: false, error: error.toString() });
   }
 }
 

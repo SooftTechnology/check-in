@@ -48,25 +48,22 @@ const App: React.FC = () => {
         }
       }
       
-      // Verificar en Google Sheets como fuente de verdad principal
-      try {
-        console.log('🌐 Verificando en Google Sheets...');
-        const hasDoneInSheets = await checkIfResponseExists(userEmail, currentMonthId);
-        console.log('🌐 Google Sheets check:', hasDoneInSheets ? '✅ Ya completado' : '❌ No completado');
-        
-        // Usar Google Sheets como fuente de verdad, localStorage como fallback
-        setAlreadyDoneThisMonth(hasDoneInSheets || hasDoneLocal);
-        
-        // Si Google Sheets confirma que existe pero localStorage no, sincronizar
-        if (hasDoneInSheets && !hasDoneLocal && saved) {
-          console.log('📥 Sincronizando desde Google Sheets a localStorage...');
-          // No necesitamos hacer nada aquí porque Google Sheets es la fuente de verdad
+      // Usar localStorage como fuente principal debido a limitaciones de CORS con Google Apps Script
+      // Los datos se guardan en Google Sheets cuando se completa, pero la verificación
+      // se hace desde localStorage porque Google Apps Script no permite CORS desde otros dominios
+      setAlreadyDoneThisMonth(hasDoneLocal);
+      
+      // Intentar verificar en Google Sheets como verificación secundaria (solo si GET funciona)
+      // Esto es opcional y no bloquea si falla
+      checkIfResponseExists(userEmail, currentMonthId).then(hasDoneInSheets => {
+        if (hasDoneInSheets && !hasDoneLocal) {
+          console.log('📥 Google Sheets indica que ya completaste, pero localStorage no. Esto puede pasar si completaste desde otro dispositivo.');
+          // No actualizamos el estado aquí porque localStorage es la fuente principal
+          // El usuario puede completar de nuevo si quiere, y se guardará en Google Sheets
         }
-      } catch (error) {
-        // Si falla la verificación en Google Sheets, usar localStorage como fallback
-        console.warn('⚠️ No se pudo verificar en Google Sheets, usando localStorage como fallback:', error);
-        setAlreadyDoneThisMonth(hasDoneLocal);
-      }
+      }).catch(() => {
+        // Ignorar errores de verificación en Google Sheets
+      });
     };
     
     checkStatus();

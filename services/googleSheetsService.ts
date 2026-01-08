@@ -25,42 +25,13 @@ export const checkIfResponseExists = async (email: string, monthId: string): Pro
 
     console.log('🔍 Verificando en Google Sheets:', { email, monthId });
 
-    // Usar POST porque GET no está recibiendo los parámetros correctamente en Google Apps Script
-    // Intentar POST sin no-cors para poder leer la respuesta
+    // Google Apps Script no permite CORS, así que usamos no-cors
+    // Esto significa que no podemos leer la respuesta, pero podemos intentar la petición
+    // Por ahora, retornamos false y confiamos en localStorage
+    // La verificación real se hace cuando se guarda (y sabemos que se guardó exitosamente)
+    
+    // Intentar con GET primero (a veces funciona sin CORS issues)
     try {
-      const response = await fetch(GOOGLE_SCRIPT_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          action: 'check',
-          email: email,
-          monthId: monthId,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-
-      const result = await response.json();
-      console.log('📥 Respuesta de Google Sheets (POST):', result);
-      
-      if (result.success === false) {
-        console.warn('⚠️ Google Sheets reportó error:', result.error);
-        return false;
-      }
-      
-      // Si tiene exists, usarlo
-      if (typeof result.exists === 'boolean') {
-        return result.exists;
-      }
-      
-      return false;
-    } catch (postError) {
-      // Si POST falla por CORS, intentar GET como fallback
-      console.log('⚠️ POST falló, intentando GET como fallback...');
       const getUrl = new URL(GOOGLE_SCRIPT_URL);
       getUrl.searchParams.set('action', 'check');
       getUrl.searchParams.set('email', email);
@@ -72,15 +43,19 @@ export const checkIfResponseExists = async (email: string, monthId: string): Pro
 
       if (getResponse.ok) {
         const getResult = await getResponse.json();
-        console.log('📥 Respuesta de Google Sheets (GET fallback):', getResult);
+        console.log('📥 Respuesta de Google Sheets (GET):', getResult);
         
         if (typeof getResult.exists === 'boolean') {
           return getResult.exists;
         }
       }
-      
-      throw postError;
+    } catch (getError) {
+      console.log('⚠️ GET falló, no se puede verificar desde Google Sheets debido a CORS');
     }
+    
+    // Si GET no funciona, no podemos verificar debido a CORS
+    // Retornar false para usar localStorage como fallback
+    return false;
   } catch (error) {
     console.warn('⚠️ Error verificando en Google Sheets, usando localStorage:', error);
     return false;
