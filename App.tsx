@@ -3,7 +3,7 @@ import { MonthlyReview, SatisfactionLevel } from './types';
 import { SATISFACTION_EMOJIS } from './constants';
 import { Tooltip } from './components/Tooltip';
 import { getDeveloperInsight } from './services/geminiService';
-import { saveToGoogleSheets } from './services/googleSheetsService';
+import { saveToGoogleSheets, checkIfResponseExists } from './services/googleSheetsService';
 
 const App: React.FC = () => {
   const [userEmail, setUserEmail] = useState<string | null>(localStorage.getItem('devpulse_email'));
@@ -22,16 +22,47 @@ const App: React.FC = () => {
   const currentMonthName = new Date().toLocaleString('es-ES', { month: 'long', year: 'numeric' });
 
   useEffect(() => {
-    const saved = localStorage.getItem('devpulse_reviews');
-    if (saved) {
-      const reviews: MonthlyReview[] = JSON.parse(saved);
-      setAllReviews(reviews);
-      
-      if (userEmail) {
-        const hasDone = reviews.some(r => r.developerEmail === userEmail && r.monthId === currentMonthId);
-        setAlreadyDoneThisMonth(hasDone);
+    const checkStatus = async () => {
+      // Primero cargar desde localStorage (caché local)
+      const saved = localStorage.getItem('devpulse_reviews');
+      if (saved) {
+        const reviews: MonthlyReview[] = JSON.parse(saved);
+        setAllReviews(reviews);
+        
+        if (userEmail) {
+          // Verificar en localStorage primero (rápido)
+          const hasDoneLocal = reviews.some(r => r.developerEmail === userEmail && r.monthId === currentMonthId);
+          
+          // Luego verificar en Google Sheets (fuente de verdad)
+          try {
+            const hasDoneInSheets = await checkIfResponseExists(userEmail, currentMonthId);
+            
+            // Usar el resultado de Google Sheets si está disponible, sino usar localStorage
+            setAlreadyDoneThisMonth(hasDoneInSheets || hasDoneLocal);
+            
+            // Si Google Sheets dice que existe pero localStorage no, actualizar localStorage
+            if (hasDoneInSheets && !hasDoneLocal) {
+              console.log('📥 Sincronizando desde Google Sheets...');
+            }
+          } catch (error) {
+            // Si falla la verificación en Google Sheets, usar localStorage
+            console.warn('⚠️ No se pudo verificar en Google Sheets, usando localStorage');
+            setAlreadyDoneThisMonth(hasDoneLocal);
+          }
+        }
+      } else if (userEmail) {
+        // Si no hay localStorage, verificar solo en Google Sheets
+        try {
+          const hasDoneInSheets = await checkIfResponseExists(userEmail, currentMonthId);
+          setAlreadyDoneThisMonth(hasDoneInSheets);
+        } catch (error) {
+          console.warn('⚠️ No se pudo verificar en Google Sheets');
+          setAlreadyDoneThisMonth(false);
+        }
       }
-    }
+    };
+
+    checkStatus();
   }, [userEmail, currentMonthId]);
 
   const handleLogin = (e: React.FormEvent) => {
