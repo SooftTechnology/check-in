@@ -21,28 +21,90 @@ const SHEET_ID = '1Kxu7-T_ArqZ5dqV3Xw8D8Bo4tZsmTtBZggDWey-hUsA';
 const SHEET_NAME = 'Hoja 1'; // Cambia esto si tu hoja tiene otro nombre
 
 /**
+ * Función auxiliar para crear respuesta con headers CORS
+ * Google Apps Script automáticamente agrega CORS cuando se despliega como "Aplicación web" con acceso "Cualquiera"
+ */
+function createResponse(data) {
+  return ContentService
+    .createTextOutput(JSON.stringify(data))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+/**
+ * Maneja las peticiones OPTIONS (preflight de CORS)
+ */
+function doOptions() {
+  return createResponse({ success: true, message: 'CORS preflight' });
+}
+
+/**
  * Función principal que se ejecuta cuando se recibe una petición POST
  */
 function doPost(e) {
   try {
-    // Parsear los datos recibidos
-    const data = JSON.parse(e.postData.contents);
+    // Log para debugging (solo visible en el editor de Apps Script)
+    Logger.log('doPost called');
+    Logger.log('e.postData.type: ' + (e.postData ? e.postData.type : 'no postData'));
+    Logger.log('e.postData.contents: ' + (e.postData ? e.postData.contents : 'no contents'));
     
-    if (data.action === 'append') {
+    // Verificar que hay datos POST
+    if (!e.postData || !e.postData.contents) {
+      Logger.log('No postData.contents found');
+      return createResponse({ 
+        success: false, 
+        error: 'No data received',
+        received: e 
+      });
+    }
+    
+    // Parsear los datos recibidos
+    let data;
+    try {
+      data = JSON.parse(e.postData.contents);
+      Logger.log('Parsed data: ' + JSON.stringify(data));
+    } catch (parseError) {
+      Logger.log('Error parsing JSON: ' + parseError.toString());
+      return createResponse({ 
+        success: false, 
+        error: 'Invalid JSON: ' + parseError.toString(),
+        received: e.postData.contents 
+      });
+    }
+    
+    // Manejar acción 'append'
+    if (data.action === 'append' && data.data) {
+      Logger.log('Calling appendToSheet');
       return appendToSheet(data.data);
     }
     
-    if (data.action === 'check' && data.email && data.monthId) {
+    // Manejar acción 'check'
+    if (data.action === 'check') {
+      if (!data.email || !data.monthId) {
+        Logger.log('Missing email or monthId for check action');
+        return createResponse({ 
+          success: false, 
+          error: 'Missing email or monthId',
+          received: data 
+        });
+      }
+      Logger.log('Calling checkIfExists with: ' + data.email + ', ' + data.monthId);
       return checkIfExists(data.email, data.monthId);
     }
     
-    return ContentService
-      .createTextOutput(JSON.stringify({ success: false, error: 'Invalid action or missing parameters' }))
-      .setMimeType(ContentService.MimeType.JSON);
+    Logger.log('Invalid action: ' + (data.action || 'no action'));
+    return createResponse({ 
+      success: false, 
+      error: 'Invalid action or missing parameters',
+      received: data 
+    });
   } catch (error) {
-    return ContentService
-      .createTextOutput(JSON.stringify({ success: false, error: error.toString() }))
-      .setMimeType(ContentService.MimeType.JSON);
+    Logger.log('Error in doPost: ' + error.toString());
+    Logger.log('Stack: ' + (error.stack || 'no stack'));
+    return createResponse({ 
+      success: false, 
+      error: error.toString(),
+      stack: error.stack 
+    });
   }
 }
 
@@ -72,26 +134,22 @@ function doGet(e) {
     }
     
     // Si no tiene los parámetros correctos, devolver mensaje de estado con información de debug
-    return ContentService
-      .createTextOutput(JSON.stringify({ 
-        success: true, 
-        message: 'Google Apps Script is running',
-        receivedParams: e.parameter || {},
-        action: action,
-        email: email,
-        monthId: monthId,
-        note: 'Use ?action=check&email=xxx&monthId=YYYY-MM to check if response exists'
-      }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return createResponse({ 
+      success: true, 
+      message: 'Google Apps Script is running',
+      receivedParams: e.parameter || {},
+      action: action,
+      email: email,
+      monthId: monthId,
+      note: 'Use POST with action=check&email=xxx&monthId=YYYY-MM to check if response exists'
+    });
   } catch (error) {
     Logger.log('Error in doGet: ' + error.toString());
-    return ContentService
-      .createTextOutput(JSON.stringify({ 
-        success: false, 
-        error: error.toString(),
-        stack: error.stack
-      }))
-      .setMimeType(ContentService.MimeType.JSON);
+    return createResponse({ 
+      success: false, 
+      error: error.toString(),
+      stack: error.stack
+    });
   }
 }
 
@@ -104,13 +162,12 @@ function checkIfExists(email, monthId) {
     const sheet = spreadsheet.getSheetByName(SHEET_NAME);
     
     if (!sheet || sheet.getLastRow() < 2) {
-      return ContentService
-        .createTextOutput(JSON.stringify({ 
-          success: true, 
-          exists: false,
-          reason: 'Sheet is empty or has no data'
-        }))
-        .setMimeType(ContentService.MimeType.JSON);
+      Logger.log('Sheet is empty or has no data');
+      return createResponse({ 
+        success: true, 
+        exists: false,
+        reason: 'Sheet is empty or has no data'
+      });
     }
     
     // Obtener todos los datos (empezando desde la fila 2, ya que la 1 es el header)
@@ -123,35 +180,70 @@ function checkIfExists(email, monthId) {
     const searchEmail = String(email).trim().toLowerCase();
     const searchMonthId = String(monthId).trim();
     
+    Logger.log('Buscando: email=' + searchEmail + ', monthId=' + searchMonthId);
+    Logger.log('Total filas a revisar: ' + values.length);
+    
     let exists = false;
+    const foundRows = [];
+    
     for (let i = 0; i < values.length; i++) {
       const row = values[i];
+      // Convertir a string y limpiar - manejar diferentes tipos de datos
       const rowEmail = String(row[0] || '').trim().toLowerCase();
       const rowMonthId = String(row[6] || '').trim();
       
-      if (rowEmail === searchEmail && rowMonthId === searchMonthId) {
+      // Log de las primeras 3 filas para debug
+      if (i < 3) {
+        Logger.log('Fila ' + (i + 2) + ': email="' + rowEmail + '", monthId="' + rowMonthId + '"');
+        Logger.log('  Tipo email: ' + typeof row[0] + ', Tipo monthId: ' + typeof row[6]);
+        Logger.log('  Email original: "' + row[0] + '", MonthId original: "' + row[6] + '"');
+      }
+      
+      // Comparación más flexible
+      const emailMatch = rowEmail === searchEmail;
+      const monthIdMatch = rowMonthId === searchMonthId;
+      
+      if (emailMatch && monthIdMatch) {
         exists = true;
+        foundRows.push({ row: i + 2, email: rowEmail, monthId: rowMonthId });
+        Logger.log('✅ MATCH encontrado en fila ' + (i + 2));
         break;
+      } else if (emailMatch) {
+        // Email coincide pero monthId no - útil para debug
+        Logger.log('⚠️ Email coincide pero monthId no: buscado="' + searchMonthId + '", encontrado="' + rowMonthId + '" en fila ' + (i + 2));
+      } else if (monthIdMatch) {
+        // MonthId coincide pero email no - útil para debug
+        Logger.log('⚠️ MonthId coincide pero email no: buscado="' + searchEmail + '", encontrado="' + rowEmail + '" en fila ' + (i + 2));
       }
     }
     
-    return ContentService
-      .createTextOutput(JSON.stringify({ 
-        success: true, 
-        exists: exists,
-        searched: { email: searchEmail, monthId: searchMonthId },
-        totalRows: values.length
-      }))
-      .setMimeType(ContentService.MimeType.JSON);
+    Logger.log('checkIfExists result: exists=' + exists + ', searched=' + searchEmail + '/' + searchMonthId + ', totalRows=' + values.length);
+    
+    // Devolver información de debug útil
+    return createResponse({ 
+      success: true, 
+      exists: exists,
+      searched: { email: searchEmail, monthId: searchMonthId },
+      totalRows: values.length,
+      foundRows: foundRows,
+      debug: {
+        searchEmail: searchEmail,
+        searchMonthId: searchMonthId,
+        firstFewRows: values.slice(0, 3).map((row, idx) => ({
+          row: idx + 2,
+          email: String(row[0] || '').trim(),
+          monthId: String(row[6] || '').trim()
+        }))
+      }
+    });
       
   } catch (error) {
-    return ContentService
-      .createTextOutput(JSON.stringify({ 
-        success: false, 
-        error: error.toString(),
-        stack: error.stack
-      }))
-      .setMimeType(ContentService.MimeType.JSON);
+    Logger.log('Error in checkIfExists: ' + error.toString());
+    return createResponse({ 
+      success: false, 
+      error: error.toString(),
+      stack: error.stack
+    });
   }
 }
 
@@ -210,21 +302,19 @@ function appendToSheet(data) {
     const newRowRange = sheet.getRange(lastRow, 1, 1, 8);
     newRowRange.setBorder(true, true, true, true, true, true);
     
-    return ContentService
-      .createTextOutput(JSON.stringify({ 
-        success: true, 
-        message: 'Data appended successfully',
-        row: lastRow 
-      }))
-      .setMimeType(ContentService.MimeType.JSON);
+    Logger.log('appendToSheet success: row ' + lastRow);
+    return createResponse({ 
+      success: true, 
+      message: 'Data appended successfully',
+      row: lastRow 
+    });
       
   } catch (error) {
-    return ContentService
-      .createTextOutput(JSON.stringify({ 
-        success: false, 
-        error: error.toString() 
-      }))
-      .setMimeType(ContentService.MimeType.JSON);
+    Logger.log('Error in appendToSheet: ' + error.toString());
+    return createResponse({ 
+      success: false, 
+      error: error.toString() 
+    });
   }
 }
 

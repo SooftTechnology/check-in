@@ -45,19 +45,58 @@ export const checkIfResponseExists = async (email: string, monthId: string): Pro
         body: JSON.stringify(postData),
       });
 
+      console.log('📡 Respuesta recibida:', {
+        ok: directResponse.ok,
+        status: directResponse.status,
+        statusText: directResponse.statusText,
+        headers: Object.fromEntries(directResponse.headers.entries())
+      });
+
       if (directResponse.ok) {
-        const directResult = await directResponse.json();
-        console.log('📥 Respuesta de Google Sheets (POST directo):', directResult);
-        
-        if (typeof directResult.exists === 'boolean') {
-          return directResult.exists;
+        try {
+          const directResult = await directResponse.json();
+          console.log('📥 Respuesta de Google Sheets (POST directo):', directResult);
+          
+          if (directResult.success === true && typeof directResult.exists === 'boolean') {
+            // Mostrar información de debug si está disponible
+            if (directResult.debug) {
+              console.log('🔍 Debug info de Google Sheets:', {
+                buscando: directResult.searched,
+                totalFilas: directResult.totalRows,
+                primerasFilas: directResult.debug.firstFewRows
+              });
+            }
+            
+            if (!directResult.exists && directResult.totalRows > 0) {
+              console.warn('⚠️ No se encontró coincidencia aunque hay', directResult.totalRows, 'filas en el sheet');
+              console.warn('   Buscando:', directResult.searched);
+              if (directResult.debug && directResult.debug.firstFewRows) {
+                console.warn('   Primeras filas en el sheet:', directResult.debug.firstFewRows);
+              }
+            }
+            
+            return directResult.exists;
+          } else if (directResult.success === false) {
+            console.warn('⚠️ Google Sheets retornó error:', directResult.error);
+            return false;
+          } else {
+            console.warn('⚠️ Respuesta inesperada de Google Sheets:', directResult);
+            return false;
+          }
+        } catch (parseError) {
+          // Intentar leer como texto para ver qué devolvió
+          const textResponse = await directResponse.text();
+          console.warn('⚠️ No se pudo parsear respuesta JSON:', textResponse);
+          return false;
         }
       } else {
-        console.warn('⚠️ POST no OK:', directResponse.status, directResponse.statusText);
+        const errorText = await directResponse.text().catch(() => 'No se pudo leer el error');
+        console.warn('⚠️ POST no OK:', directResponse.status, directResponse.statusText, errorText);
+        return false;
       }
     } catch (directError: any) {
-      // Si falla por CORS, no podemos leer la respuesta
-      console.warn('⚠️ POST directo falló (probablemente CORS):', directError.message);
+      // Si falla por CORS u otro error de red
+      console.warn('⚠️ POST directo falló:', directError.message, directError);
       // Retornar false para usar localStorage como fallback
       return false;
     }
