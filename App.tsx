@@ -180,7 +180,7 @@ const App: React.FC = () => {
                 id="email"
                 type="email"
                 required
-                placeholder="tu.nombre@sooft.tech"
+                placeholder="ejemplo@sooft.ar"
                 value={emailInput}
                 onChange={(e) => setEmailInput(e.target.value)}
                 className="w-full px-4 py-3 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:outline-none transition-colors"
