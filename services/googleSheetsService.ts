@@ -16,6 +16,10 @@ const GOOGLE_SCRIPT_URL = import.meta.env.VITE_GOOGLE_SCRIPT_URL || '';
 /**
  * Verifica si ya existe una respuesta para un email y monthId en Google Sheets
  */
+/**
+ * Verifica si ya existe una respuesta para un email y monthId en Google Sheets
+ * Usa un proxy CORS para evitar problemas de CORS
+ */
 export const checkIfResponseExists = async (email: string, monthId: string): Promise<boolean> => {
   try {
     if (!GOOGLE_SCRIPT_URL) {
@@ -25,36 +29,55 @@ export const checkIfResponseExists = async (email: string, monthId: string): Pro
 
     console.log('🔍 Verificando en Google Sheets:', { email, monthId });
 
-    // Google Apps Script no permite CORS, así que usamos no-cors
-    // Esto significa que no podemos leer la respuesta, pero podemos intentar la petición
-    // Por ahora, retornamos false y confiamos en localStorage
-    // La verificación real se hace cuando se guarda (y sabemos que se guardó exitosamente)
+    // Construir URL con parámetros
+    const getUrl = new URL(GOOGLE_SCRIPT_URL);
+    getUrl.searchParams.set('action', 'check');
+    getUrl.searchParams.set('email', email);
+    getUrl.searchParams.set('monthId', monthId);
     
-    // Intentar con GET primero (a veces funciona sin CORS issues)
+    // Usar un proxy CORS para evitar problemas de CORS
+    // Alternativamente, intentar directamente (a veces funciona)
+    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(getUrl.toString())}`;
+    
     try {
-      const getUrl = new URL(GOOGLE_SCRIPT_URL);
-      getUrl.searchParams.set('action', 'check');
-      getUrl.searchParams.set('email', email);
-      getUrl.searchParams.set('monthId', monthId);
-      
-      const getResponse = await fetch(getUrl.toString(), {
+      // Intentar primero sin proxy
+      const directResponse = await fetch(getUrl.toString(), {
         method: 'GET',
+        mode: 'cors',
       });
 
-      if (getResponse.ok) {
-        const getResult = await getResponse.json();
-        console.log('📥 Respuesta de Google Sheets (GET):', getResult);
+      if (directResponse.ok) {
+        const directResult = await directResponse.json();
+        console.log('📥 Respuesta de Google Sheets (GET directo):', directResult);
         
-        if (typeof getResult.exists === 'boolean') {
-          return getResult.exists;
+        if (typeof directResult.exists === 'boolean') {
+          return directResult.exists;
         }
       }
-    } catch (getError) {
-      console.log('⚠️ GET falló, no se puede verificar desde Google Sheets debido a CORS');
+    } catch (directError) {
+      console.log('⚠️ GET directo falló, intentando con proxy CORS...');
+      
+      // Si falla, usar proxy CORS
+      try {
+        const proxyResponse = await fetch(proxyUrl, {
+          method: 'GET',
+        });
+
+        if (proxyResponse.ok) {
+          const proxyResult = await proxyResponse.json();
+          const content = JSON.parse(proxyResult.contents);
+          console.log('📥 Respuesta de Google Sheets (vía proxy):', content);
+          
+          if (typeof content.exists === 'boolean') {
+            return content.exists;
+          }
+        }
+      } catch (proxyError) {
+        console.warn('⚠️ Proxy CORS también falló:', proxyError);
+      }
     }
     
-    // Si GET no funciona, no podemos verificar debido a CORS
-    // Retornar false para usar localStorage como fallback
+    // Si todo falla, retornar false para usar localStorage
     return false;
   } catch (error) {
     console.warn('⚠️ Error verificando en Google Sheets, usando localStorage:', error);
