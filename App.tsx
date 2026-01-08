@@ -23,40 +23,49 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const checkStatus = async () => {
-      if (!userEmail) return;
+      if (!userEmail) {
+        setAlreadyDoneThisMonth(false);
+        return;
+      }
+      
+      console.log('🔍 Verificando estado para:', { email: userEmail, monthId: currentMonthId });
       
       // Cargar desde localStorage (caché local para UI rápida)
       const saved = localStorage.getItem('devpulse_reviews');
+      let hasDoneLocal = false;
+      
       if (saved) {
-        const reviews: MonthlyReview[] = JSON.parse(saved);
-        setAllReviews(reviews);
+        try {
+          const reviews: MonthlyReview[] = JSON.parse(saved);
+          setAllReviews(reviews);
+          hasDoneLocal = reviews.some(r => 
+            r.developerEmail?.toLowerCase() === userEmail.toLowerCase() && 
+            r.monthId === currentMonthId
+          );
+          console.log('📦 localStorage check:', hasDoneLocal ? '✅ Ya completado' : '❌ No completado');
+        } catch (e) {
+          console.error('❌ Error parsing localStorage:', e);
+        }
       }
       
       // Verificar en Google Sheets como fuente de verdad principal
       try {
+        console.log('🌐 Verificando en Google Sheets...');
         const hasDoneInSheets = await checkIfResponseExists(userEmail, currentMonthId);
-        setAlreadyDoneThisMonth(hasDoneInSheets);
+        console.log('🌐 Google Sheets check:', hasDoneInSheets ? '✅ Ya completado' : '❌ No completado');
         
-        // Si Google Sheets confirma que existe, actualizar localStorage para sincronización
-        if (hasDoneInSheets && saved) {
-          const reviews: MonthlyReview[] = JSON.parse(saved);
-          const hasDoneLocal = reviews.some(r => r.developerEmail === userEmail && r.monthId === currentMonthId);
-          
-          if (!hasDoneLocal) {
-            console.log('📥 Sincronizando desde Google Sheets...');
-            // Opcional: podrías agregar una entrada en localStorage aquí si quieres
-          }
+        // Usar Google Sheets como fuente de verdad, localStorage como fallback
+        setAlreadyDoneThisMonth(hasDoneInSheets || hasDoneLocal);
+        
+        // Si Google Sheets confirma que existe pero localStorage no, sincronizar
+        if (hasDoneInSheets && !hasDoneLocal && saved) {
+          console.log('📥 Sincronizando desde Google Sheets a localStorage...');
+          // No necesitamos hacer nada aquí porque Google Sheets es la fuente de verdad
         }
       } catch (error) {
         // Si falla la verificación en Google Sheets, usar localStorage como fallback
-        console.warn('⚠️ No se pudo verificar en Google Sheets, usando localStorage como fallback');
-        if (saved) {
-          const reviews: MonthlyReview[] = JSON.parse(saved);
-          const hasDoneLocal = reviews.some(r => r.developerEmail === userEmail && r.monthId === currentMonthId);
-          setAlreadyDoneThisMonth(hasDoneLocal);
-        } else {
-          setAlreadyDoneThisMonth(false);
-        }
+        console.warn('⚠️ No se pudo verificar en Google Sheets, usando localStorage como fallback:', error);
+        setAlreadyDoneThisMonth(hasDoneLocal);
       }
     };
     

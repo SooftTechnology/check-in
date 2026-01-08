@@ -10,7 +10,7 @@ export interface GoogleSheetsReview {
 }
 
 // La variable de entorno se inyecta en tiempo de build por Vite
-const GOOGLE_SCRIPT_URL = (import.meta.env as any).VITE_GOOGLE_SCRIPT_URL || '';
+const GOOGLE_SCRIPT_URL = import.meta.env.VITE_GOOGLE_SCRIPT_URL || '';
 
 /**
  * Verifica si ya existe una respuesta para un email y monthId en Google Sheets
@@ -27,16 +27,25 @@ export const checkIfResponseExists = async (email: string, monthId: string): Pro
     url.searchParams.set('email', email);
     url.searchParams.set('monthId', monthId);
 
+    console.log('🔍 Verificando en Google Sheets:', { email, monthId, url: url.toString().substring(0, 80) + '...' });
+
     const response = await fetch(url.toString(), {
       method: 'GET',
     });
 
     if (!response.ok) {
-      console.warn('⚠️ No se pudo verificar en Google Sheets, usando localStorage');
+      console.warn('⚠️ Respuesta no OK de Google Sheets:', response.status, response.statusText);
       return false;
     }
 
     const result = await response.json();
+    console.log('📥 Respuesta de Google Sheets:', result);
+    
+    if (result.success === false) {
+      console.warn('⚠️ Google Sheets reportó error:', result.error);
+      return false;
+    }
+    
     return result.exists === true;
   } catch (error) {
     console.warn('⚠️ Error verificando en Google Sheets, usando localStorage:', error);
