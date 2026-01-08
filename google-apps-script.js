@@ -51,24 +51,31 @@ function doPost(e) {
 function doGet(e) {
   try {
     // Los parámetros vienen en e.parameter cuando se usa URL con query string
-    const action = e.parameter && e.parameter.action ? e.parameter.action : null;
-    const email = e.parameter && e.parameter.email ? e.parameter.email : null;
-    const monthId = e.parameter && e.parameter.monthId ? e.parameter.monthId : null;
+    // En Google Apps Script, e.parameter es un objeto donde las claves son los nombres de los parámetros
+    const action = e.parameter ? (e.parameter.action || e.parameter['action']) : null;
+    const email = e.parameter ? (e.parameter.email || e.parameter['email']) : null;
+    const monthId = e.parameter ? (e.parameter.monthId || e.parameter['monthId']) : null;
     
     // Log para debugging (solo visible en el editor de Apps Script)
-    Logger.log('doGet called with parameters: ' + JSON.stringify(e.parameter));
+    Logger.log('doGet called');
+    Logger.log('e.parameter: ' + JSON.stringify(e.parameter));
+    Logger.log('action: ' + action + ', email: ' + email + ', monthId: ' + monthId);
     
+    // Si tiene los parámetros correctos, verificar
     if (action === 'check' && email && monthId) {
       Logger.log('Calling checkIfExists with: ' + email + ', ' + monthId);
       return checkIfExists(email, monthId);
     }
     
-    // Si no tiene los parámetros correctos, devolver mensaje de estado
+    // Si no tiene los parámetros correctos, devolver mensaje de estado con información de debug
     return ContentService
       .createTextOutput(JSON.stringify({ 
         success: true, 
         message: 'Google Apps Script is running',
         receivedParams: e.parameter || {},
+        action: action,
+        email: email,
+        monthId: monthId,
         note: 'Use ?action=check&email=xxx&monthId=YYYY-MM to check if response exists'
       }))
       .setMimeType(ContentService.MimeType.JSON);
