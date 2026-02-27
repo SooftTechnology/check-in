@@ -102,7 +102,7 @@ const App: React.FC = () => {
   };
 
   const handleSubmit = async () => {
-    if (!userEmail || satisfaction === null) return;
+    if (!userEmail || satisfaction === null || isSubmitting) return;
 
     setIsSubmitting(true);
 
@@ -145,46 +145,40 @@ const App: React.FC = () => {
     const updatedReviews = [...allReviews, newReview];
     setAllReviews(updatedReviews);
     localStorage.setItem('devpulse_reviews', JSON.stringify(updatedReviews));
+    setAlreadyDoneThisMonth(true);
+    setStep(6); // Ir inmediatamente a la pantalla de éxito
 
-    // Guardar en Google Sheets
-    await saveToGoogleSheets({
-      email: userEmail,
-      completion: completion,
-      bugs: bugs,
-      satisfaction: satisfaction,
-      selfEvaluation: selfEvaluation.trim() || undefined,
-      comments: commentsForSheet,
-      timestamp: newReview.timestamp,
-      monthId: currentMonthId,
-      monthName: currentMonthName,
-    });
-
-    const feedback = await getDeveloperInsight(
-      completion,
-      bugs,
-      satisfaction,
-      insightText || ''
-    );
-    setInsight(feedback);
-    
-    setIsSubmitting(false);
-    
-    // Verificar inmediatamente después de guardar para asegurar que se actualice el estado
+    // Lanzar las llamadas externas sin bloquear el cambio de pantalla
     try {
-      const hasDoneInSheets = await checkIfResponseExists(userEmail, currentMonthId);
-      const hasDoneLocal = updatedReviews.some(r => 
-        r.developerEmail?.toLowerCase() === userEmail.toLowerCase() && 
-        r.monthId === currentMonthId
-      );
-      setAlreadyDoneThisMonth(hasDoneInSheets || hasDoneLocal);
-      console.log('✅ Estado actualizado después de guardar:', { hasDoneInSheets, hasDoneLocal });
+      // Guardar en Google Sheets (no bloquea la UI)
+      await saveToGoogleSheets({
+        email: userEmail,
+        completion: completion,
+        bugs: bugs,
+        satisfaction: satisfaction,
+        selfEvaluation: selfEvaluation.trim() || undefined,
+        comments: commentsForSheet,
+        timestamp: newReview.timestamp,
+        monthId: currentMonthId,
+        monthName: currentMonthName,
+      });
     } catch (error) {
-      // Si falla la verificación, usar el estado local
-      setAlreadyDoneThisMonth(true);
-      console.warn('⚠️ Error verificando después de guardar, usando estado local');
+      console.error('Error guardando en Google Sheets:', error);
     }
-    
-    setStep(6); // Success step
+
+    try {
+      const feedback = await getDeveloperInsight(
+        completion,
+        bugs,
+        satisfaction,
+        insightText || ''
+      );
+      setInsight(feedback);
+    } catch (error) {
+      console.error('Error obteniendo insight del desarrollador:', error);
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const logout = () => {
