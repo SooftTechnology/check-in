@@ -106,18 +106,29 @@ const App: React.FC = () => {
 
     setIsSubmitting(true);
 
-    const combinedComments =
-      selfEvaluation.trim() || lowSatisfactionReason.trim() || comments.trim()
+    // Lo que se guarda en la columna "Comentarios" del Sheet (sin la autoevaluación)
+    const commentsForSheet =
+      lowSatisfactionReason.trim() || comments.trim()
         ? [
-            selfEvaluation.trim() ? `Autoevaluación: ${selfEvaluation.trim()}` : '',
             satisfaction !== null && satisfaction <= 2 && lowSatisfactionReason.trim()
               ? `Motivo de baja satisfacción: ${lowSatisfactionReason.trim()}`
               : '',
             comments.trim() ? `Comentarios adicionales: ${comments.trim()}` : '',
           ]
-          .filter(Boolean)
-          .join('\n\n')
+            .filter(Boolean)
+            .join('\n\n')
         : undefined;
+
+    // Texto completo que se envía al modelo (incluye autoevaluación)
+    const insightText = [
+      selfEvaluation.trim() ? `Autoevaluación: ${selfEvaluation.trim()}` : '',
+      satisfaction !== null && satisfaction <= 2 && lowSatisfactionReason.trim()
+        ? `Motivo de baja satisfacción: ${lowSatisfactionReason.trim()}`
+        : '',
+      comments.trim() ? `Comentarios adicionales: ${comments.trim()}` : '',
+    ]
+      .filter(Boolean)
+      .join('\n\n');
     
     const newReview: MonthlyReview = {
       id: crypto.randomUUID(),
@@ -125,7 +136,7 @@ const App: React.FC = () => {
       completionPercentage: completion,
       bugCount: bugs,
       satisfaction,
-      comments: combinedComments,
+      comments: commentsForSheet,
       timestamp: new Date().toLocaleString(),
       monthId: currentMonthId,
       monthName: currentMonthName
@@ -142,7 +153,7 @@ const App: React.FC = () => {
       bugs: bugs,
       satisfaction: satisfaction,
       selfEvaluation: selfEvaluation.trim() || undefined,
-      comments: combinedComments,
+      comments: commentsForSheet,
       timestamp: newReview.timestamp,
       monthId: currentMonthId,
       monthName: currentMonthName,
@@ -152,7 +163,7 @@ const App: React.FC = () => {
       completion,
       bugs,
       satisfaction,
-      combinedComments || ''
+      insightText || ''
     );
     setInsight(feedback);
     
