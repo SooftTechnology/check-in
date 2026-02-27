@@ -172,7 +172,7 @@ const App: React.FC = () => {
       console.warn('⚠️ Error verificando después de guardar, usando estado local');
     }
     
-    setStep(7); // Success step
+    setStep(6); // Success step
   };
 
   const logout = () => {
@@ -235,7 +235,7 @@ const App: React.FC = () => {
     );
   }
 
-  if (alreadyDoneThisMonth && step !== 7) {
+  if (alreadyDoneThisMonth && step !== 6) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6">
         <div className="max-w-md w-full bg-white rounded-3xl shadow-xl p-8 text-center">
@@ -269,7 +269,7 @@ const App: React.FC = () => {
         <div className="absolute top-0 left-0 w-full h-1.5 bg-slate-100 rounded-t-3xl overflow-hidden">
           <div
             className="h-full bg-indigo-600 transition-all duration-500"
-            style={{ width: `${(Math.min(step, 6) / 6) * 100}%` }}
+            style={{ width: `${(Math.min(step, 5) / 5) * 100}%` }}
           />
         </div>
 
@@ -382,13 +382,7 @@ const App: React.FC = () => {
                 Atrás
               </button>
               <button
-                onClick={() => {
-                  if (satisfaction !== null && satisfaction <= 2) {
-                    setStep(5);
-                  } else {
-                    setStep(6);
-                  }
-                }}
+                onClick={() => setStep(5)}
                 disabled={satisfaction === null}
                 className="flex-[2] bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg disabled:opacity-50"
               >
@@ -398,71 +392,76 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {step === 5 && satisfaction !== null && satisfaction <= 2 && (
-          <div className="space-y-8 animate-in slide-in-from-right duration-500">
-            <div>
-              <h2 className="text-xl font-bold text-slate-800 mb-4 text-center">
-                5. Contanos un poco más
-              </h2>
-              <p className="text-sm text-slate-500 mb-4 text-center">
-                ¿Qué hizo que tu satisfacción sea baja este mes? Cualquier detalle nos ayuda a
-                entender mejor cómo acompañarte.
-              </p>
-              <textarea
-                value={lowSatisfactionReason}
-                onChange={(e) => setLowSatisfactionReason(e.target.value)}
-                placeholder="Si querés, podés compartir qué pasó o qué podríamos mejorar..."
-                className="w-full h-32 px-4 py-3 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:outline-none transition-colors resize-none text-slate-700"
-              />
+        {step === 5 && (
+          satisfaction !== null &&
+          (satisfaction <= 2 ? (
+            <div className="space-y-8 animate-in slide-in-from-right duration-500">
+              <div>
+                <h2 className="text-xl font-bold text-slate-800 mb-4 text-center">
+                  5. Contanos un poco más
+                </h2>
+                <p className="text-sm text-slate-500 mb-4 text-center">
+                  ¿Qué hizo que tu satisfacción sea baja este mes? Cualquier detalle nos ayuda a
+                  entender mejor cómo acompañarte.
+                </p>
+                <textarea
+                  value={lowSatisfactionReason}
+                  onChange={(e) => setLowSatisfactionReason(e.target.value)}
+                  placeholder="Si querés, podés compartir qué pasó o qué podríamos mejorar..."
+                  className="w-full h-32 px-4 py-3 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:outline-none transition-colors resize-none text-slate-700"
+                />
+              </div>
+              <div className="flex gap-4">
+                <button onClick={() => setStep(4)} className="flex-1 text-slate-400 font-bold py-4">
+                  Atrás
+                </button>
+                <button
+                  onClick={handleSubmit}
+                  disabled={isSubmitting}
+                  className="flex-[2] bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg disabled:opacity-50 flex items-center justify-center gap-3"
+                >
+                  {isSubmitting ? (
+                    <i className="fa-solid fa-spinner animate-spin"></i>
+                  ) : (
+                    'Finalizar Check-in'
+                  )}
+                </button>
+              </div>
             </div>
-            <div className="flex gap-4">
-              <button onClick={() => setStep(4)} className="flex-1 text-slate-400 font-bold py-4">
-                Atrás
-              </button>
-              <button
-                onClick={() => setStep(6)}
-                className="flex-[2] bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg"
-              >
-                Siguiente
-              </button>
+          ) : (
+            <div className="space-y-8 animate-in slide-in-from-right duration-500">
+              <div>
+                <h2 className="text-xl font-bold text-slate-800 mb-4 text-center">
+                  5. ¿Algún comentario adicional?
+                </h2>
+                <textarea
+                  value={comments}
+                  onChange={(e) => setComments(e.target.value)}
+                  placeholder="En este espacio podes comentar o preguntar al equipo de Sooft"
+                  className="w-full h-32 px-4 py-3 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:outline-none transition-colors resize-none text-slate-700"
+                />
+              </div>
+              <div className="flex gap-4">
+                <button onClick={() => setStep(4)} className="flex-1 text-slate-400 font-bold py-4">
+                  Atrás
+                </button>
+                <button
+                  onClick={handleSubmit}
+                  disabled={isSubmitting}
+                  className="flex-[2] bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg disabled:opacity-50 flex items-center justify-center gap-3"
+                >
+                  {isSubmitting ? (
+                    <i className="fa-solid fa-spinner animate-spin"></i>
+                  ) : (
+                    'Finalizar Check-in'
+                  )}
+                </button>
+              </div>
             </div>
-          </div>
+          ))
         )}
 
         {step === 6 && (
-          <div className="space-y-8 animate-in slide-in-from-right duration-500">
-            <div>
-              <h2 className="text-xl font-bold text-slate-800 mb-4 text-center">
-                6. ¿Algún comentario adicional?
-              </h2>
-              <textarea
-                value={comments}
-                onChange={(e) => setComments(e.target.value)}
-                placeholder="En este espacio podes comentar o preguntar al equipo de Sooft"
-                className="w-full h-32 px-4 py-3 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:outline-none transition-colors resize-none text-slate-700"
-              />
-            </div>
-            <div className="flex gap-4">
-              <button
-                onClick={() =>
-                  satisfaction !== null && satisfaction <= 2 ? setStep(5) : setStep(4)
-                }
-                className="flex-1 text-slate-400 font-bold py-4"
-              >
-                Atrás
-              </button>
-              <button
-                onClick={handleSubmit}
-                disabled={isSubmitting}
-                className="flex-[2] bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg disabled:opacity-50 flex items-center justify-center gap-3"
-              >
-                {isSubmitting ? <i className="fa-solid fa-spinner animate-spin"></i> : 'Finalizar Check-in'}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {step === 7 && (
           <div className="text-center space-y-6 animate-in zoom-in duration-500">
             <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <i className="fa-solid fa-check text-4xl text-green-600"></i>
