@@ -332,12 +332,9 @@ const App: React.FC = () => {
               <textarea
                 value={selfEvaluation}
                 onChange={(e) => setSelfEvaluation(e.target.value)}
-                placeholder="Comparte tu autoevaluación (obligatorio)..."
+                placeholder="Comparte tu autoevaluación..."
                 className="w-full h-32 px-4 py-3 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:outline-none transition-colors resize-none text-slate-700"
               />
-              {selfEvaluation.trim().length === 0 && (
-                <p className="text-xs text-red-500 mt-2">Este campo es obligatorio.</p>
-              )}
             </div>
             <div className="flex gap-4">
               <button onClick={() => setStep(2)} className="flex-1 text-slate-400 font-bold py-4">
@@ -345,7 +342,12 @@ const App: React.FC = () => {
               </button>
               <button
                 onClick={() => setStep(4)}
-                disabled={selfEvaluation.trim().length === 0}
+                disabled={selfEvaluation.trim().length < 3}
+                title={
+                  selfEvaluation.trim().length < 3
+                    ? 'Por favor redactá aunque sea un poco más tu respuesta.'
+                    : undefined
+                }
                 className="flex-[2] bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg disabled:opacity-50"
               >
                 Siguiente
