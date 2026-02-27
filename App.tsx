@@ -344,18 +344,26 @@ const App: React.FC = () => {
               <button onClick={() => setStep(2)} className="flex-1 text-slate-400 font-bold py-4">
                 Atrás
               </button>
-              <button
-                onClick={() => setStep(4)}
-                disabled={selfEvaluation.trim().length < 3}
+              <div
+                className="flex-[2]"
                 title={
                   selfEvaluation.trim().length < 3
                     ? 'Por favor redactá aunque sea un poco más tu respuesta.'
                     : undefined
                 }
-                className="flex-[2] bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg disabled:opacity-50"
               >
-                Siguiente
-              </button>
+                <button
+                  onClick={() => {
+                    if (selfEvaluation.trim().length >= 3) {
+                      setStep(4);
+                    }
+                  }}
+                  disabled={selfEvaluation.trim().length < 3}
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg disabled:opacity-50"
+                >
+                  Siguiente
+                </button>
+              </div>
             </div>
           </div>
         )}
@@ -407,7 +415,7 @@ const App: React.FC = () => {
                 <textarea
                   value={lowSatisfactionReason}
                   onChange={(e) => setLowSatisfactionReason(e.target.value)}
-                  placeholder="Si querés, podés compartir qué pasó o qué podríamos mejorar..."
+                  placeholder="Podés compartir qué pasó o qué se puede mejorar..."
                   className="w-full h-32 px-4 py-3 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:outline-none transition-colors resize-none text-slate-700"
                 />
               </div>
@@ -415,17 +423,30 @@ const App: React.FC = () => {
                 <button onClick={() => setStep(4)} className="flex-1 text-slate-400 font-bold py-4">
                   Atrás
                 </button>
-                <button
-                  onClick={handleSubmit}
-                  disabled={isSubmitting}
-                  className="flex-[2] bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg disabled:opacity-50 flex items-center justify-center gap-3"
+                <div
+                  className="flex-[2]"
+                  title={
+                    lowSatisfactionReason.trim().length < 3
+                      ? 'Por favor redactá aunque sea un poco más tu respuesta.'
+                      : undefined
+                  }
                 >
-                  {isSubmitting ? (
-                    <i className="fa-solid fa-spinner animate-spin"></i>
-                  ) : (
-                    'Finalizar Check-in'
-                  )}
-                </button>
+                  <button
+                    onClick={() => {
+                      if (lowSatisfactionReason.trim().length >= 3 && !isSubmitting) {
+                        handleSubmit();
+                      }
+                    }}
+                    disabled={isSubmitting || lowSatisfactionReason.trim().length < 3}
+                    className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg disabled:opacity-50 flex items-center justify-center gap-3"
+                  >
+                    {isSubmitting ? (
+                      <i className="fa-solid fa-spinner animate-spin"></i>
+                    ) : (
+                      'Finalizar Check-in'
+                    )}
+                  </button>
+                </div>
               </div>
             </div>
           ) : (
