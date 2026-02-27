@@ -9,9 +9,10 @@ const App: React.FC = () => {
   const [userEmail, setUserEmail] = useState<string | null>(localStorage.getItem('devpulse_email'));
   const [emailInput, setEmailInput] = useState('');
   const [step, setStep] = useState(1);
-  const [completion, setCompletion] = useState(80);
+  const [completion, setCompletion] = useState(0);
   const [bugs, setBugs] = useState(0);
   const [satisfaction, setSatisfaction] = useState<SatisfactionLevel | null>(null);
+  const [selfEvaluation, setSelfEvaluation] = useState('');
   const [comments, setComments] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [insight, setInsight] = useState<string | null>(null);
@@ -103,6 +104,16 @@ const App: React.FC = () => {
     if (!userEmail || satisfaction === null) return;
 
     setIsSubmitting(true);
+
+    const combinedComments =
+      selfEvaluation.trim() || comments.trim()
+        ? [
+            selfEvaluation.trim() ? `Autoevaluación: ${selfEvaluation.trim()}` : '',
+            comments.trim() ? `Comentarios adicionales: ${comments.trim()}` : '',
+          ]
+            .filter(Boolean)
+            .join('\n\n')
+        : undefined;
     
     const newReview: MonthlyReview = {
       id: crypto.randomUUID(),
@@ -110,7 +121,7 @@ const App: React.FC = () => {
       completionPercentage: completion,
       bugCount: bugs,
       satisfaction,
-      comments: comments.trim() || undefined,
+      comments: combinedComments,
       timestamp: new Date().toLocaleString(),
       monthId: currentMonthId,
       monthName: currentMonthName
@@ -126,13 +137,18 @@ const App: React.FC = () => {
       completion: completion,
       bugs: bugs,
       satisfaction: satisfaction,
-      comments: comments.trim() || undefined,
+      comments: combinedComments,
       timestamp: newReview.timestamp,
       monthId: currentMonthId,
       monthName: currentMonthName,
     });
 
-    const feedback = await getDeveloperInsight(completion, bugs, satisfaction, comments);
+    const feedback = await getDeveloperInsight(
+      completion,
+      bugs,
+      satisfaction,
+      combinedComments || ''
+    );
     setInsight(feedback);
     
     setIsSubmitting(false);
@@ -152,7 +168,7 @@ const App: React.FC = () => {
       console.warn('⚠️ Error verificando después de guardar, usando estado local');
     }
     
-    setStep(5); // Success step
+    setStep(6); // Success step
   };
 
   const logout = () => {
@@ -215,7 +231,7 @@ const App: React.FC = () => {
     );
   }
 
-  if (alreadyDoneThisMonth && step !== 5) {
+  if (alreadyDoneThisMonth && step !== 6) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6">
         <div className="max-w-md w-full bg-white rounded-3xl shadow-xl p-8 text-center">
@@ -247,7 +263,10 @@ const App: React.FC = () => {
 
       <div className="max-w-xl w-full bg-white rounded-3xl shadow-xl p-8 relative">
         <div className="absolute top-0 left-0 w-full h-1.5 bg-slate-100 rounded-t-3xl overflow-hidden">
-          <div className="h-full bg-indigo-600 transition-all duration-500" style={{ width: `${(step / 4) * 100}%` }} />
+          <div
+            className="h-full bg-indigo-600 transition-all duration-500"
+            style={{ width: `${(Math.min(step, 5) / 5) * 100}%` }}
+          />
         </div>
 
         {step === 1 && (
@@ -302,8 +321,42 @@ const App: React.FC = () => {
         )}
 
         {step === 3 && (
+          <div className="space-y-8 animate-in slide-in-from-right duration-500">
+            <div>
+              <h2 className="text-xl font-bold text-slate-800 mb-4 text-center">
+                3. ¿Cómo evaluarías tu desempeño general en los últimos 30 días? ¿Por qué?
+              </h2>
+              <p className="text-sm text-slate-500 mb-4 text-center">
+                ¿Has enfrentado alguna dificultad o problema que haya afectado tu trabajo?
+              </p>
+              <textarea
+                value={selfEvaluation}
+                onChange={(e) => setSelfEvaluation(e.target.value)}
+                placeholder="Comparte tu autoevaluación (obligatorio)..."
+                className="w-full h-32 px-4 py-3 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:outline-none transition-colors resize-none text-slate-700"
+              />
+              {selfEvaluation.trim().length === 0 && (
+                <p className="text-xs text-red-500 mt-2">Este campo es obligatorio.</p>
+              )}
+            </div>
+            <div className="flex gap-4">
+              <button onClick={() => setStep(2)} className="flex-1 text-slate-400 font-bold py-4">
+                Atrás
+              </button>
+              <button
+                onClick={() => setStep(4)}
+                disabled={selfEvaluation.trim().length === 0}
+                className="flex-[2] bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg disabled:opacity-50"
+              >
+                Siguiente
+              </button>
+            </div>
+          </div>
+        )}
+
+        {step === 4 && (
           <div className="space-y-8 animate-in slide-in-from-right duration-500 text-center">
-            <h2 className="text-xl font-bold text-slate-800">3. Satisfacción con el trabajo</h2>
+            <h2 className="text-xl font-bold text-slate-800">4. Satisfacción con el trabajo</h2>
             <div className="grid grid-cols-5 gap-2">
               {SATISFACTION_EMOJIS.map((item) => (
                 <button
@@ -319,18 +372,26 @@ const App: React.FC = () => {
               ))}
             </div>
             <div className="flex gap-4 pt-4">
-              <button onClick={() => setStep(2)} className="flex-1 text-slate-400 font-bold py-4">Atrás</button>
-              <button onClick={() => setStep(4)} disabled={satisfaction === null} className="flex-[2] bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg disabled:opacity-50">
+              <button onClick={() => setStep(3)} className="flex-1 text-slate-400 font-bold py-4">
+                Atrás
+              </button>
+              <button
+                onClick={() => setStep(5)}
+                disabled={satisfaction === null}
+                className="flex-[2] bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg disabled:opacity-50"
+              >
                 Siguiente
               </button>
             </div>
           </div>
         )}
 
-        {step === 4 && (
+        {step === 5 && (
           <div className="space-y-8 animate-in slide-in-from-right duration-500">
             <div>
-              <h2 className="text-xl font-bold text-slate-800 mb-4 text-center">4. ¿Algún comentario adicional?</h2>
+              <h2 className="text-xl font-bold text-slate-800 mb-4 text-center">
+                5. ¿Algún comentario adicional?
+              </h2>
               <textarea
                 value={comments}
                 onChange={(e) => setComments(e.target.value)}
@@ -339,7 +400,9 @@ const App: React.FC = () => {
               />
             </div>
             <div className="flex gap-4">
-              <button onClick={() => setStep(3)} className="flex-1 text-slate-400 font-bold py-4">Atrás</button>
+              <button onClick={() => setStep(4)} className="flex-1 text-slate-400 font-bold py-4">
+                Atrás
+              </button>
               <button
                 onClick={handleSubmit}
                 disabled={isSubmitting}
@@ -351,7 +414,7 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {step === 5 && (
+        {step === 6 && (
           <div className="text-center space-y-6 animate-in zoom-in duration-500">
             <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <i className="fa-solid fa-check text-4xl text-green-600"></i>
