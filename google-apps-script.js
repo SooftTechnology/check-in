@@ -172,15 +172,15 @@ function checkIfExists(email, monthId) {
     
     // Obtener todos los datos (empezando desde la fila 2, ya que la 1 es el header)
     const lastRow = sheet.getLastRow();
-    const dataRange = sheet.getRange(2, 1, lastRow - 1, 8);
+    const dataRange = sheet.getRange(2, 1, lastRow - 1, 9);
     const values = dataRange.getValues();
     
     // Obtener el header para verificar el orden de las columnas
-    const headerRow = sheet.getRange(1, 1, 1, 8).getValues()[0];
+    const headerRow = sheet.getRange(1, 1, 1, 9).getValues()[0];
     Logger.log('Headers encontrados: ' + JSON.stringify(headerRow));
     
     // Buscar si existe una fila con el email y monthId
-    // Columnas esperadas: Email (0), Completitud (1), Bugs (2), Satisfacción (3), Comentarios (4), Timestamp (5), Month ID (6), Month Name (7)
+    // Columnas esperadas: Email (0), Completitud (1), Bugs (2), Satisfacción (3), Autoevaluación (4), Comentarios (5), Timestamp (6), Month ID (7), Month Name (8)
     const searchEmail = String(email).trim().toLowerCase();
     const searchMonthId = String(monthId).trim();
     
@@ -253,7 +253,7 @@ function checkIfExists(email, monthId) {
     const matchingEmails = [];
     
     // Buscar dinámicamente qué columna tiene "Month ID" en el header
-    let monthIdColumnIndex = 6; // Por defecto columna 6 (índice 6)
+    let monthIdColumnIndex = 7; // Por defecto columna 7 (índice 7, por la nueva columna Autoevaluación)
     let emailColumnIndex = 0; // Por defecto columna 0 (índice 0)
     
     for (let i = 0; i < headerRow.length; i++) {
@@ -377,24 +377,25 @@ function appendToSheet(data) {
     }
     
     // Verificar si el header existe (si la primera fila está vacía o no tiene el header esperado)
-    const firstRow = sheet.getRange(1, 1, 1, 8).getValues()[0];
+    const firstRow = sheet.getRange(1, 1, 1, 9).getValues()[0];
     const hasHeader = firstRow[0] === 'Email' || firstRow[0] === '';
     
     // Si no hay header, agregarlo
     if (!hasHeader || sheet.getLastRow() === 0) {
       sheet.insertRowBefore(1);
-      sheet.getRange(1, 1, 1, 8).setValues([[
+      sheet.getRange(1, 1, 1, 9).setValues([[
         'Email',
         'Completitud (%)',
         'Bugs',
         'Satisfacción',
+        'Autoevaluación',
         'Comentarios',
         'Timestamp',
         'Month ID',
         'Month Name'
       ]]);
       // Formatear encabezados
-      const headerRange = sheet.getRange(1, 1, 1, 8);
+      const headerRange = sheet.getRange(1, 1, 1, 9);
       headerRange.setFontWeight('bold');
       headerRange.setBackground('#4F46E5');
       headerRange.setFontColor('#FFFFFF');
@@ -402,23 +403,24 @@ function appendToSheet(data) {
     
     // Agregar la nueva fila con los datos
     const lastRow = sheet.getLastRow() + 1;
-    sheet.getRange(lastRow, 1, 1, 8).setValues([[
+    sheet.getRange(lastRow, 1, 1, 9).setValues([[
       data.email || '',
       data.completion || 0,
       data.bugs || 0,
       data.satisfaction || 0,
+      data.selfEvaluation || '',
       data.comments || '',
       data.timestamp || new Date().toLocaleString(),
       data.monthId || '', // Guardar como texto
       data.monthName || ''
     ]]);
     
-    // Asegurar que la columna Month ID (columna 7, índice 6) sea texto
+    // Asegurar que la columna Month ID (columna 8, índice 7) sea texto
     // Usar formato de texto para evitar que Google Sheets convierta "2026-01" a fecha
-    sheet.getRange(lastRow, 7, 1, 1).setNumberFormat('@');
+    sheet.getRange(lastRow, 8, 1, 1).setNumberFormat('@');
     
     // Aplicar formato a la nueva fila (opcional)
-    const newRowRange = sheet.getRange(lastRow, 1, 1, 8);
+    const newRowRange = sheet.getRange(lastRow, 1, 1, 9);
     newRowRange.setBorder(true, true, true, true, true, true);
     
     Logger.log('appendToSheet success: row ' + lastRow);

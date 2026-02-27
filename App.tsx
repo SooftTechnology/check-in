@@ -141,6 +141,7 @@ const App: React.FC = () => {
       completion: completion,
       bugs: bugs,
       satisfaction: satisfaction,
+      selfEvaluation: selfEvaluation.trim() || undefined,
       comments: combinedComments,
       timestamp: newReview.timestamp,
       monthId: currentMonthId,

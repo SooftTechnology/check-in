@@ -3,6 +3,7 @@ export interface GoogleSheetsReview {
   completion: number;
   bugs: number;
   satisfaction: number;
+  selfEvaluation?: string;
   comments?: string;
   timestamp: string;
   monthId: string;
@@ -159,6 +160,7 @@ export const saveToGoogleSheets = async (review: GoogleSheetsReview): Promise<bo
           completion: review.completion,
           bugs: review.bugs,
           satisfaction: review.satisfaction,
+          selfEvaluation: review.selfEvaluation || '',
           comments: review.comments || '',
           timestamp: review.timestamp,
           monthId: review.monthId,
