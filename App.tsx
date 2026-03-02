@@ -1,9 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { MonthlyReview, SatisfactionLevel } from './types';
 import { SATISFACTION_EMOJIS } from './constants';
 import { Tooltip } from './components/Tooltip';
 import { getDeveloperInsight } from './services/geminiService';
 import { saveToGoogleSheets, checkIfResponseExists } from './services/googleSheetsService';
+
+const SpeechRecognitionClass =
+  typeof window !== 'undefined'
+    ? (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition
+    : null;
 
 const App: React.FC = () => {
   const [userEmail, setUserEmail] = useState<string | null>(localStorage.getItem('devpulse_email'));
@@ -20,9 +25,43 @@ const App: React.FC = () => {
   const [allReviews, setAllReviews] = useState<MonthlyReview[]>([]);
   const [alreadyDoneThisMonth, setAlreadyDoneThisMonth] = useState(false);
   const [isCheckingStatus, setIsCheckingStatus] = useState(true);
+  const [isRecording, setIsRecording] = useState(false);
+  const recognitionRef = useRef<any | null>(null);
 
   const currentMonthId = new Date().toISOString().slice(0, 7);
   const currentMonthName = new Date().toLocaleString('es-ES', { month: 'long', year: 'numeric' });
+
+  useEffect(() => {
+    if (!SpeechRecognitionClass) return;
+
+    const recognition = new SpeechRecognitionClass();
+    recognition.lang = 'es-AR';
+    recognition.continuous = true;
+    recognition.interimResults = true;
+
+    recognition.onresult = (event: any) => {
+      let finalTranscript = '';
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscript += transcript + ' ';
+        }
+      }
+      if (finalTranscript) {
+        setSelfEvaluation((prev) => (prev + ' ' + finalTranscript).trim());
+      }
+    };
+
+    recognition.onend = () => {
+      setIsRecording(false);
+    };
+
+    recognitionRef.current = recognition;
+
+    return () => {
+      recognition.stop?.();
+    };
+  }, []);
 
   useEffect(() => {
     const checkStatus = async () => {
@@ -345,6 +384,31 @@ const App: React.FC = () => {
                 placeholder="Comparte tu autoevaluación..."
                 className="w-full h-32 px-4 py-3 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:outline-none transition-colors resize-none text-slate-700"
               />
+              {SpeechRecognitionClass && (
+                <div className="mt-2 flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const recognition = recognitionRef.current;
+                      if (!recognition) return;
+                      if (isRecording) {
+                        recognition.stop();
+                        setIsRecording(false);
+                      } else {
+                        try {
+                          recognition.start();
+                          setIsRecording(true);
+                        } catch {
+                          // Si start falla (por ejemplo, ya estaba en marcha), ignoramos el error.
+                        }
+                      }
+                    }}
+                    className="text-xs font-medium text-indigo-600 hover:text-indigo-700 underline decoration-dotted"
+                  >
+                    {isRecording ? 'Detener dictado por voz' : 'Dictar autoevaluación con voz'}
+                  </button>
+                </div>
+              )}
             </div>
             <div className="flex gap-4">
               <button onClick={() => setStep(2)} className="flex-1 text-slate-400 font-bold py-4">
