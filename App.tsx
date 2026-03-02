@@ -26,7 +26,10 @@ const App: React.FC = () => {
   const [alreadyDoneThisMonth, setAlreadyDoneThisMonth] = useState(false);
   const [isCheckingStatus, setIsCheckingStatus] = useState(true);
   const [isRecording, setIsRecording] = useState(false);
+  const [speechError, setSpeechError] = useState<string | null>(null);
   const recognitionRef = useRef<any | null>(null);
+  const recordingWantedRef = useRef(false);
+  const restartTimerRef = useRef<number | null>(null);
 
   const currentMonthId = new Date().toISOString().slice(0, 7);
   const currentMonthName = new Date().toLocaleString('es-ES', { month: 'long', year: 'numeric' });
@@ -52,16 +55,70 @@ const App: React.FC = () => {
       }
     };
 
+    recognition.onstart = () => {
+      setSpeechError(null);
+      setIsRecording(true);
+    };
+
     recognition.onend = () => {
       setIsRecording(false);
+      if (!recordingWantedRef.current) return;
+
+      // En Chrome es común que se corte solo; si el usuario quiere seguir, reintentamos.
+      if (restartTimerRef.current) window.clearTimeout(restartTimerRef.current);
+      restartTimerRef.current = window.setTimeout(() => {
+        try {
+          recognition.start();
+        } catch {
+          // Si ya estaba arrancado/aborted, ignorar.
+        }
+      }, 250);
+    };
+
+    recognition.onerror = (event: any) => {
+      const error = String(event?.error || '').toLowerCase();
+
+      // Errores comunes: 'no-speech', 'audio-capture', 'not-allowed', 'aborted'
+      if (error === 'not-allowed' || error === 'service-not-allowed') {
+        setSpeechError('No se pudo acceder al micrófono. Revisá permisos del navegador.');
+        recordingWantedRef.current = false;
+        setIsRecording(false);
+        return;
+      }
+
+      if (error === 'audio-capture') {
+        setSpeechError('No se detectó un micrófono disponible.');
+        recordingWantedRef.current = false;
+        setIsRecording(false);
+        return;
+      }
+
+      if (error && error !== 'no-speech' && error !== 'aborted') {
+        setSpeechError('Hubo un problema con el dictado por voz. Probá nuevamente.');
+      }
     };
 
     recognitionRef.current = recognition;
 
     return () => {
+      recordingWantedRef.current = false;
+      if (restartTimerRef.current) window.clearTimeout(restartTimerRef.current);
       recognition.stop?.();
     };
   }, []);
+
+  useEffect(() => {
+    // Si el usuario sale del paso 3, detener dictado para evitar que siga escuchando.
+    if (step !== 3 && recordingWantedRef.current) {
+      recordingWantedRef.current = false;
+      try {
+        recognitionRef.current?.stop?.();
+      } catch {
+        // ignore
+      }
+      setIsRecording(false);
+    }
+  }, [step]);
 
   useEffect(() => {
     const checkStatus = async () => {
@@ -385,27 +442,56 @@ const App: React.FC = () => {
                 className="w-full h-32 px-4 py-3 border-2 border-slate-100 rounded-xl focus:border-indigo-500 focus:outline-none transition-colors resize-none text-slate-700"
               />
               {SpeechRecognitionClass && (
-                <div className="mt-2 flex justify-end">
+                <div className="mt-3 flex items-center justify-between gap-3">
+                  <div className="min-h-[16px]">
+                    {speechError && <p className="text-xs text-red-500">{speechError}</p>}
+                  </div>
                   <button
                     type="button"
                     onClick={() => {
                       const recognition = recognitionRef.current;
                       if (!recognition) return;
-                      if (isRecording) {
-                        recognition.stop();
-                        setIsRecording(false);
-                      } else {
+
+                      setSpeechError(null);
+
+                      if (recordingWantedRef.current) {
+                        recordingWantedRef.current = false;
                         try {
-                          recognition.start();
-                          setIsRecording(true);
+                          recognition.stop();
                         } catch {
-                          // Si start falla (por ejemplo, ya estaba en marcha), ignoramos el error.
+                          // ignore
                         }
+                        setIsRecording(false);
+                        return;
+                      }
+
+                      recordingWantedRef.current = true;
+                      try {
+                        recognition.start();
+                      } catch {
+                        // Si start falla (p.ej. ya estaba iniciando), ignoramos.
                       }
                     }}
-                    className="text-xs font-medium text-indigo-600 hover:text-indigo-700 underline decoration-dotted"
+                    title={isRecording ? 'Detener dictado' : 'Dictar con micrófono'}
+                    className={`inline-flex items-center gap-2 rounded-xl border-2 px-4 py-2 text-sm font-bold transition-all ${
+                      isRecording
+                        ? 'border-red-200 bg-red-50 text-red-700'
+                        : 'border-slate-100 bg-white text-slate-700 hover:bg-slate-50'
+                    }`}
+                    aria-pressed={isRecording}
                   >
-                    {isRecording ? 'Detener dictado por voz' : 'Dictar autoevaluación con voz'}
+                    <span
+                      className={`inline-flex h-8 w-8 items-center justify-center rounded-lg ${
+                        isRecording ? 'bg-red-100' : 'bg-indigo-100'
+                      }`}
+                    >
+                      <i
+                        className={`fa-solid ${
+                          isRecording ? 'fa-microphone-lines-slash text-red-600' : 'fa-microphone text-indigo-600'
+                        }`}
+                      ></i>
+                    </span>
+                    {isRecording ? 'Grabando…' : 'Dictar'}
                   </button>
                 </div>
               )}
