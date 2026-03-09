@@ -412,7 +412,30 @@ function appendToSheet(data) {
           const base64Data = match[2];
           const bytes = Utilities.base64Decode(base64Data);
           const blob = Utilities.newBlob(bytes, contentType, data.boardScreenshotName);
-          const file = DriveApp.createFile(blob);
+          
+          // Carpeta raíz donde se guardan todas las capturas
+          const rootFolderName = 'captura dashboard';
+          let rootFolder;
+          
+          const rootSearch = DriveApp.getFoldersByName(rootFolderName);
+          if (rootSearch.hasNext()) {
+            rootFolder = rootSearch.next();
+          } else {
+            rootFolder = DriveApp.createFolder(rootFolderName);
+          }
+
+          // Subcarpeta por email (una por desarrollador)
+          const emailFolderName = String(data.email || 'sin-email').trim() || 'sin-email';
+          let userFolder;
+          const userSearch = rootFolder.getFoldersByName(emailFolderName);
+          if (userSearch.hasNext()) {
+            userFolder = userSearch.next();
+          } else {
+            userFolder = rootFolder.createFolder(emailFolderName);
+          }
+
+          // Guardar el archivo dentro de la carpeta del usuario
+          const file = userFolder.createFile(blob);
           screenshotUrl = file.getUrl();
         }
       } catch (e) {
