@@ -81,7 +81,7 @@ const App: React.FC = () => {
 
       // Errores comunes: 'no-speech', 'audio-capture', 'not-allowed', 'aborted'
       if (error === 'not-allowed' || error === 'service-not-allowed') {
-        setSpeechError('No se pudo acceder al micrófono. Revisá permisos del navegador (solo funciona en https o localhost).');
+        setSpeechError('No se pudo usar el micrófono. Revisá permisos y volvé a intentar.');
         recordingWantedRef.current = false;
         setIsRecording(false);
         try {
@@ -93,7 +93,7 @@ const App: React.FC = () => {
       }
 
       if (error === 'audio-capture') {
-        setSpeechError('No se detectó un micrófono disponible.');
+        setSpeechError('No se detectó micrófono disponible.');
         recordingWantedRef.current = false;
         setIsRecording(false);
         try {
@@ -105,9 +105,7 @@ const App: React.FC = () => {
       }
 
       if (error === 'network') {
-        setSpeechError(
-          'No se pudo conectar al servicio de reconocimiento de voz. Puede que tu red, VPN o firewall lo estén bloqueando.'
-        );
+        setSpeechError('No se pudo conectar al servicio de voz. Probá de nuevo más tarde.');
       } else if (error && error !== 'no-speech' && error !== 'aborted') {
         setSpeechError('Hubo un problema con el dictado por voz. Probá nuevamente.');
       }
