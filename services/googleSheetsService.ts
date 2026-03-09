@@ -8,6 +8,9 @@ export interface GoogleSheetsReview {
   timestamp: string;
   monthId: string;
   monthName: string;
+  // Datos opcionales de la captura del tablero (imagen en base64 + nombre de archivo)
+  boardScreenshotData?: string;
+  boardScreenshotName?: string;
 }
 
 // La variable de entorno se inyecta en tiempo de build por Vite
@@ -97,6 +100,8 @@ export const saveToGoogleSheets = async (review: GoogleSheetsReview): Promise<bo
           timestamp: review.timestamp,
           monthId: review.monthId,
           monthName: review.monthName,
+          boardScreenshot: review.boardScreenshotData || '',
+          boardScreenshotName: review.boardScreenshotName || '',
         },
       }),
     });

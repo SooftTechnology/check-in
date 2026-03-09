@@ -172,11 +172,11 @@ function checkIfExists(email, monthId) {
     
     // Obtener todos los datos (empezando desde la fila 2, ya que la 1 es el header)
     const lastRow = sheet.getLastRow();
-    const dataRange = sheet.getRange(2, 1, lastRow - 1, 9);
+    const dataRange = sheet.getRange(2, 1, lastRow - 1, 10);
     const values = dataRange.getValues();
     
     // Obtener el header para verificar el orden de las columnas
-    const headerRow = sheet.getRange(1, 1, 1, 9).getValues()[0];
+    const headerRow = sheet.getRange(1, 1, 1, 10).getValues()[0];
     Logger.log('Headers encontrados: ' + JSON.stringify(headerRow));
     
     // Buscar si existe una fila con el email y monthId
@@ -377,13 +377,13 @@ function appendToSheet(data) {
     }
     
     // Verificar si el header existe (si la primera fila está vacía o no tiene el header esperado)
-    const firstRow = sheet.getRange(1, 1, 1, 9).getValues()[0];
+    const firstRow = sheet.getRange(1, 1, 1, 10).getValues()[0];
     const hasHeader = firstRow[0] === 'Email' || firstRow[0] === '';
     
     // Si no hay header, agregarlo
     if (!hasHeader || sheet.getLastRow() === 0) {
       sheet.insertRowBefore(1);
-      sheet.getRange(1, 1, 1, 9).setValues([[
+      sheet.getRange(1, 1, 1, 10).setValues([[
         'Email',
         'Completitud (%)',
         'Bugs',
@@ -392,18 +392,37 @@ function appendToSheet(data) {
         'Comentarios',
         'Timestamp',
         'Month ID',
-        'Month Name'
+        'Month Name',
+        'Board Screenshot URL'
       ]]);
       // Formatear encabezados
-      const headerRange = sheet.getRange(1, 1, 1, 9);
+      const headerRange = sheet.getRange(1, 1, 1, 10);
       headerRange.setFontWeight('bold');
       headerRange.setBackground('#4F46E5');
       headerRange.setFontColor('#FFFFFF');
     }
     
+    // Si se envió una captura de tablero, guardarla en Drive y obtener la URL
+    let screenshotUrl = '';
+    if (data.boardScreenshot && data.boardScreenshotName) {
+      try {
+        const match = String(data.boardScreenshot).match(/^data:(.+);base64,(.+)$/);
+        if (match) {
+          const contentType = match[1];
+          const base64Data = match[2];
+          const bytes = Utilities.base64Decode(base64Data);
+          const blob = Utilities.newBlob(bytes, contentType, data.boardScreenshotName);
+          const file = DriveApp.createFile(blob);
+          screenshotUrl = file.getUrl();
+        }
+      } catch (e) {
+        Logger.log('Error guardando captura de tablero en Drive: ' + e.toString());
+      }
+    }
+    
     // Agregar la nueva fila con los datos
     const lastRow = sheet.getLastRow() + 1;
-    sheet.getRange(lastRow, 1, 1, 9).setValues([[
+    sheet.getRange(lastRow, 1, 1, 10).setValues([[
       data.email || '',
       data.completion || 0,
       data.bugs || 0,
@@ -412,7 +431,8 @@ function appendToSheet(data) {
       data.comments || '',
       data.timestamp || new Date().toLocaleString(),
       data.monthId || '', // Guardar como texto
-      data.monthName || ''
+      data.monthName || '',
+      screenshotUrl
     ]]);
     
     // Asegurar que la columna Month ID (columna 8, índice 7) sea texto
@@ -420,7 +440,7 @@ function appendToSheet(data) {
     sheet.getRange(lastRow, 8, 1, 1).setNumberFormat('@');
     
     // Aplicar formato a la nueva fila (opcional)
-    const newRowRange = sheet.getRange(lastRow, 1, 1, 9);
+    const newRowRange = sheet.getRange(lastRow, 1, 1, 10);
     newRowRange.setBorder(true, true, true, true, true, true);
     
     Logger.log('appendToSheet success: row ' + lastRow);

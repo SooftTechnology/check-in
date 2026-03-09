@@ -17,6 +17,8 @@ const App: React.FC = () => {
   const [completion, setCompletion] = useState(0);
   const [bugs, setBugs] = useState(0);
   const [satisfaction, setSatisfaction] = useState<SatisfactionLevel | null>(null);
+  const [boardScreenshot, setBoardScreenshot] = useState<File | null>(null);
+  const [boardScreenshotData, setBoardScreenshotData] = useState<string | null>(null);
   const [selfEvaluation, setSelfEvaluation] = useState('');
   const [lowSatisfactionReason, setLowSatisfactionReason] = useState('');
   const [comments, setComments] = useState('');
@@ -124,8 +126,8 @@ const App: React.FC = () => {
   }, []);
 
   useEffect(() => {
-    // Si el usuario sale del paso 3, detener dictado para evitar que siga escuchando.
-    if (step !== 3 && recordingWantedRef.current) {
+    // Si el usuario sale del paso de autoevaluación, detener dictado para evitar que siga escuchando.
+    if (step !== 4 && recordingWantedRef.current) {
       recordingWantedRef.current = false;
       try {
         recognitionRef.current?.stop?.();
@@ -258,7 +260,7 @@ const App: React.FC = () => {
     setAllReviews(updatedReviews);
     localStorage.setItem('devpulse_reviews', JSON.stringify(updatedReviews));
     setAlreadyDoneThisMonth(true);
-    setStep(6); // Ir inmediatamente a la pantalla de éxito
+    setStep(7); // Ir inmediatamente a la pantalla de éxito
 
     // Lanzar las llamadas externas sin bloquear el cambio de pantalla
     try {
@@ -273,6 +275,8 @@ const App: React.FC = () => {
         timestamp: newReview.timestamp,
         monthId: currentMonthId,
         monthName: currentMonthName,
+        boardScreenshotData: boardScreenshotData || undefined,
+        boardScreenshotName: boardScreenshot?.name || undefined,
       });
     } catch (error) {
       console.error('Error guardando en Google Sheets:', error);
@@ -353,7 +357,7 @@ const App: React.FC = () => {
     );
   }
 
-  if (alreadyDoneThisMonth && step !== 6) {
+  if (alreadyDoneThisMonth && step !== 7) {
     return (
       <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center p-6">
         <div className="max-w-md w-full bg-white rounded-3xl shadow-xl p-8 text-center">
@@ -387,7 +391,7 @@ const App: React.FC = () => {
         <div className="absolute top-0 left-0 w-full h-1.5 bg-slate-100 rounded-t-3xl overflow-hidden">
           <div
             className="h-full bg-indigo-600 transition-all duration-500"
-            style={{ width: `${(Math.min(step, 5) / 5) * 100}%` }}
+            style={{ width: `${(Math.min(step, 6) / 6) * 100}%` }}
           />
         </div>
 
@@ -446,7 +450,82 @@ const App: React.FC = () => {
           <div className="space-y-8 animate-in slide-in-from-right duration-500">
             <div>
               <h2 className="text-xl font-bold text-slate-800 mb-4 text-center">
-                3. ¿Cómo evaluarías tu desempeño general en los últimos 30 días? ¿Por qué?
+                3. Captura de tu tablero
+              </h2>
+              <p className="text-sm text-slate-500 mb-4 text-center">
+                Subí una captura de pantalla de tu tablero donde se vean tus tareas asignadas en este sprint.
+              </p>
+              <div className="space-y-4">
+                <label className="block">
+                  <span className="sr-only">Subir captura de tu tablero</span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0] || null;
+                      setBoardScreenshot(file);
+
+                      if (file) {
+                        const reader = new FileReader();
+                        reader.onloadend = () => {
+                          const result = reader.result;
+                          if (typeof result === 'string') {
+                            setBoardScreenshotData(result);
+                          }
+                        };
+                        reader.readAsDataURL(file);
+                      } else {
+                        setBoardScreenshotData(null);
+                      }
+                    }}
+                    className="block w-full text-sm text-slate-600
+                               file:mr-4 file:py-2 file:px-4
+                               file:rounded-xl file:border-0
+                               file:text-sm file:font-semibold
+                               file:bg-indigo-50 file:text-indigo-700
+                               hover:file:bg-indigo-100"
+                  />
+                </label>
+                {boardScreenshot && (
+                  <p className="text-xs text-slate-500">
+                    Archivo seleccionado: <span className="font-medium">{boardScreenshot.name}</span>
+                  </p>
+                )}
+              </div>
+            </div>
+            <div className="flex gap-4">
+              <button onClick={() => setStep(2)} className="flex-1 text-slate-400 font-bold py-4">
+                Atrás
+              </button>
+              <div
+                className="flex-[2]"
+                title={
+                  !boardScreenshot
+                    ? 'Por favor subí una captura de tu tablero para continuar.'
+                    : undefined
+                }
+              >
+                <button
+                  onClick={() => {
+                    if (boardScreenshot) {
+                      setStep(4);
+                    }
+                  }}
+                  disabled={!boardScreenshot}
+                  className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg disabled:opacity-50"
+                >
+                  Siguiente
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {step === 4 && (
+          <div className="space-y-8 animate-in slide-in-from-right duration-500">
+            <div>
+              <h2 className="text-xl font-bold text-slate-800 mb-4 text-center">
+                4. ¿Cómo evaluarías tu desempeño general en los últimos 30 días? ¿Por qué?
               </h2>
               <p className="text-sm text-slate-500 mb-4 text-center">
                 ¿Has enfrentado alguna dificultad o problema que haya afectado tu trabajo?
@@ -513,7 +592,7 @@ const App: React.FC = () => {
               )}
             </div>
             <div className="flex gap-4">
-              <button onClick={() => setStep(2)} className="flex-1 text-slate-400 font-bold py-4">
+              <button onClick={() => setStep(3)} className="flex-1 text-slate-400 font-bold py-4">
                 Atrás
               </button>
               <div
@@ -527,7 +606,7 @@ const App: React.FC = () => {
                 <button
                   onClick={() => {
                     if (selfEvaluation.trim().length >= 3) {
-                      setStep(4);
+                      setStep(5);
                     }
                   }}
                   disabled={selfEvaluation.trim().length < 3}
@@ -540,9 +619,9 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {step === 4 && (
+        {step === 5 && (
           <div className="space-y-8 animate-in slide-in-from-right duration-500 text-center">
-            <h2 className="text-xl font-bold text-slate-800">4. Satisfacción con el trabajo</h2>
+            <h2 className="text-xl font-bold text-slate-800">5. Satisfacción con el trabajo</h2>
             <div className="grid grid-cols-5 gap-2">
               {SATISFACTION_EMOJIS.map((item) => (
                 <button
@@ -558,11 +637,11 @@ const App: React.FC = () => {
               ))}
             </div>
             <div className="flex gap-4 pt-4">
-              <button onClick={() => setStep(3)} className="flex-1 text-slate-400 font-bold py-4">
+              <button onClick={() => setStep(4)} className="flex-1 text-slate-400 font-bold py-4">
                 Atrás
               </button>
               <button
-                onClick={() => setStep(5)}
+                onClick={() => setStep(6)}
                 disabled={satisfaction === null}
                 className="flex-[2] bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg disabled:opacity-50"
               >
@@ -572,13 +651,13 @@ const App: React.FC = () => {
           </div>
         )}
 
-        {step === 5 && (
+        {step === 6 && (
           satisfaction !== null &&
           (satisfaction <= 2 ? (
             <div className="space-y-8 animate-in slide-in-from-right duration-500">
               <div>
                 <h2 className="text-xl font-bold text-slate-800 mb-4 text-center">
-                  5. Contanos un poco más
+                  6. Contanos un poco más
                 </h2>
                 <p className="text-sm text-slate-500 mb-4 text-center">
                   ¿Qué hizo que tu satisfacción sea baja este mes? Cualquier detalle nos ayuda a
@@ -592,7 +671,7 @@ const App: React.FC = () => {
                 />
               </div>
               <div className="flex gap-4">
-                <button onClick={() => setStep(4)} className="flex-1 text-slate-400 font-bold py-4">
+                <button onClick={() => setStep(5)} className="flex-1 text-slate-400 font-bold py-4">
                   Atrás
                 </button>
                 <div
@@ -625,7 +704,7 @@ const App: React.FC = () => {
             <div className="space-y-8 animate-in slide-in-from-right duration-500">
               <div>
                 <h2 className="text-xl font-bold text-slate-800 mb-4 text-center">
-                  5. ¿Algún comentario adicional?
+                  6. ¿Algún comentario adicional?
                 </h2>
                 <textarea
                   value={comments}
@@ -635,7 +714,7 @@ const App: React.FC = () => {
                 />
               </div>
               <div className="flex gap-4">
-                <button onClick={() => setStep(4)} className="flex-1 text-slate-400 font-bold py-4">
+                <button onClick={() => setStep(5)} className="flex-1 text-slate-400 font-bold py-4">
                   Atrás
                 </button>
                 <button
@@ -654,7 +733,7 @@ const App: React.FC = () => {
           ))
         )}
 
-        {step === 6 && (
+        {step === 7 && (
           <div className="text-center space-y-6 animate-in zoom-in duration-500">
             <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
               <i className="fa-solid fa-check text-4xl text-green-600"></i>
