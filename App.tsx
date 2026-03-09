@@ -17,8 +17,8 @@ const App: React.FC = () => {
   const [completion, setCompletion] = useState(0);
   const [bugs, setBugs] = useState(0);
   const [satisfaction, setSatisfaction] = useState<SatisfactionLevel | null>(null);
-  const [boardScreenshot, setBoardScreenshot] = useState<File | null>(null);
-  const [boardScreenshotData, setBoardScreenshotData] = useState<string | null>(null);
+  const [boardScreenshots, setBoardScreenshots] = useState<File[]>([]);
+  const [boardScreenshotsData, setBoardScreenshotsData] = useState<string[]>([]);
   const [selfEvaluation, setSelfEvaluation] = useState('');
   const [lowSatisfactionReason, setLowSatisfactionReason] = useState('');
   const [comments, setComments] = useState('');
@@ -275,8 +275,8 @@ const App: React.FC = () => {
         timestamp: newReview.timestamp,
         monthId: currentMonthId,
         monthName: currentMonthName,
-        boardScreenshotData: boardScreenshotData || undefined,
-        boardScreenshotName: boardScreenshot?.name || undefined,
+        boardScreenshotsData: boardScreenshotsData.length ? boardScreenshotsData : undefined,
+        boardScreenshotsNames: boardScreenshots.length ? boardScreenshots.map((f) => f.name) : undefined,
       });
     } catch (error) {
       console.error('Error guardando en Google Sheets:', error);
@@ -461,21 +461,31 @@ const App: React.FC = () => {
                   <input
                     type="file"
                     accept="image/*"
+                    multiple
                     onChange={(e) => {
-                      const file = e.target.files?.[0] || null;
-                      setBoardScreenshot(file);
+                      const files: File[] = e.target.files ? Array.from(e.target.files) : [];
+                      setBoardScreenshots(files);
 
-                      if (file) {
-                        const reader = new FileReader();
-                        reader.onloadend = () => {
-                          const result = reader.result;
-                          if (typeof result === 'string') {
-                            setBoardScreenshotData(result);
-                          }
-                        };
-                        reader.readAsDataURL(file);
+                      if (files.length) {
+                        const readersResults: string[] = [];
+                        let loaded = 0;
+
+                        files.forEach((file, index) => {
+                          const reader = new FileReader();
+                          reader.onloadend = () => {
+                            const result = reader.result;
+                            if (typeof result === 'string') {
+                              readersResults[index] = result;
+                            }
+                            loaded += 1;
+                            if (loaded === files.length) {
+                              setBoardScreenshotsData(readersResults);
+                            }
+                          };
+                          reader.readAsDataURL(file);
+                        });
                       } else {
-                        setBoardScreenshotData(null);
+                        setBoardScreenshotsData([]);
                       }
                     }}
                     className="block w-full text-sm text-slate-600
@@ -486,9 +496,12 @@ const App: React.FC = () => {
                                hover:file:bg-indigo-100"
                   />
                 </label>
-                {boardScreenshot && (
+                {boardScreenshots.length > 0 && (
                   <p className="text-xs text-slate-500">
-                    Archivo seleccionado: <span className="font-medium">{boardScreenshot.name}</span>
+                    Archivos seleccionados:{' '}
+                    <span className="font-medium">
+                      {boardScreenshots.map((f) => f.name).join(', ')}
+                    </span>
                   </p>
                 )}
               </div>
@@ -500,18 +513,18 @@ const App: React.FC = () => {
               <div
                 className="flex-[2]"
                 title={
-                  !boardScreenshot
-                    ? 'Por favor subí una captura de tu tablero para continuar.'
+                  boardScreenshots.length === 0
+                    ? 'Por favor subí al menos una captura de tu tablero para continuar.'
                     : undefined
                 }
               >
                 <button
                   onClick={() => {
-                    if (boardScreenshot) {
+                    if (boardScreenshots.length > 0) {
                       setStep(4);
                     }
                   }}
-                  disabled={!boardScreenshot}
+                  disabled={boardScreenshots.length === 0}
                   className="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-4 rounded-xl shadow-lg disabled:opacity-50"
                 >
                   Siguiente

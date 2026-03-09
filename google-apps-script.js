@@ -402,45 +402,58 @@ function appendToSheet(data) {
       headerRange.setFontColor('#FFFFFF');
     }
     
-    // Si se envió una captura de tablero, guardarla en Drive y obtener la URL
+    // Si se enviaron capturas de tablero, guardarlas en Drive y obtener las URLs
     let screenshotUrl = '';
-    if (data.boardScreenshot && data.boardScreenshotName) {
-      try {
-        const match = String(data.boardScreenshot).match(/^data:(.+);base64,(.+)$/);
-        if (match) {
+    try {
+      const screenshots = Array.isArray(data.boardScreenshots) ? data.boardScreenshots : [];
+      const screenshotNames = Array.isArray(data.boardScreenshotsNames) ? data.boardScreenshotsNames : [];
+
+      if (screenshots.length > 0) {
+        // Carpeta raíz donde se guardan todas las capturas
+        const rootFolderName = 'captura dashboard';
+        let rootFolder;
+
+        const rootSearch = DriveApp.getFoldersByName(rootFolderName);
+        if (rootSearch.hasNext()) {
+          rootFolder = rootSearch.next();
+        } else {
+          rootFolder = DriveApp.createFolder(rootFolderName);
+        }
+
+        // Subcarpeta por email (una por desarrollador)
+        const emailFolderName = String(data.email || 'sin-email').trim() || 'sin-email';
+        let userFolder;
+        const userSearch = rootFolder.getFoldersByName(emailFolderName);
+        if (userSearch.hasNext()) {
+          userFolder = userSearch.next();
+        } else {
+          userFolder = rootFolder.createFolder(emailFolderName);
+        }
+
+        const urls = [];
+
+        for (let i = 0; i < screenshots.length; i++) {
+          const screenshot = screenshots[i];
+          const screenshotName = screenshotNames[i] || ('captura-' + (i + 1) + '.png');
+          const match = String(screenshot).match(/^data:(.+);base64,(.+)$/);
+          if (!match) continue;
+
           const contentType = match[1];
           const base64Data = match[2];
           const bytes = Utilities.base64Decode(base64Data);
-          const blob = Utilities.newBlob(bytes, contentType, data.boardScreenshotName);
-          
-          // Carpeta raíz donde se guardan todas las capturas
-          const rootFolderName = 'captura dashboard';
-          let rootFolder;
-          
-          const rootSearch = DriveApp.getFoldersByName(rootFolderName);
-          if (rootSearch.hasNext()) {
-            rootFolder = rootSearch.next();
-          } else {
-            rootFolder = DriveApp.createFolder(rootFolderName);
-          }
+          const blob = Utilities.newBlob(bytes, contentType, screenshotName);
 
-          // Subcarpeta por email (una por desarrollador)
-          const emailFolderName = String(data.email || 'sin-email').trim() || 'sin-email';
-          let userFolder;
-          const userSearch = rootFolder.getFoldersByName(emailFolderName);
-          if (userSearch.hasNext()) {
-            userFolder = userSearch.next();
-          } else {
-            userFolder = rootFolder.createFolder(emailFolderName);
-          }
-
-          // Guardar el archivo dentro de la carpeta del usuario
           const file = userFolder.createFile(blob);
-          screenshotUrl = file.getUrl();
+          urls.push(file.getUrl());
         }
-      } catch (e) {
-        Logger.log('Error guardando captura de tablero en Drive: ' + e.toString());
+
+        // Guardar todas las URLs en una sola celda, separadas por salto de línea
+        if (urls.length > 0) {
+          screenshotUrl = urls.join('\n');
+        }
       }
+    } catch (e) {
+      Logger.log('Error guardando capturas de tablero en Drive: ' + e.toString());
     }
     
     // Agregar la nueva fila con los datos
