@@ -430,7 +430,21 @@ function appendToSheet(data) {
           userFolder = rootFolder.createFolder(emailFolderName);
         }
 
-        const urls = [];
+        // Subcarpeta por fecha de carga dentro de la carpeta del usuario
+        // Usamos la fecha actual del servidor en formato YYYY-MM-DD
+        const today = new Date();
+        const dateFolderName = Utilities.formatDate(
+          today,
+          Session.getScriptTimeZone(),
+          'yyyy-MM-dd'
+        );
+        let dateFolder;
+        const dateSearch = userFolder.getFoldersByName(dateFolderName);
+        if (dateSearch.hasNext()) {
+          dateFolder = dateSearch.next();
+        } else {
+          dateFolder = userFolder.createFolder(dateFolderName);
+        }
 
         for (let i = 0; i < screenshots.length; i++) {
           const screenshot = screenshots[i];
@@ -443,14 +457,12 @@ function appendToSheet(data) {
           const bytes = Utilities.base64Decode(base64Data);
           const blob = Utilities.newBlob(bytes, contentType, screenshotName);
 
-          const file = userFolder.createFile(blob);
-          urls.push(file.getUrl());
+          // Guardar archivo en carpeta: captura dashboard / <email> / <YYYY-MM-DD>
+          dateFolder.createFile(blob);
         }
 
-        // Guardar todas las URLs en una sola celda, separadas por salto de línea
-        if (urls.length > 0) {
-          screenshotUrl = urls.join('\n');
-        }
+        // Guardar solo la URL de la carpeta de fecha, no de cada archivo
+        screenshotUrl = dateFolder.getUrl();
       }
     } catch (e) {
       Logger.log('Error guardando capturas de tablero en Drive: ' + e.toString());
