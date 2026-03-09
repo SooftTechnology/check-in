@@ -77,12 +77,18 @@ const App: React.FC = () => {
 
     recognition.onerror = (event: any) => {
       const error = String(event?.error || '').toLowerCase();
+      console.error('🎙️ SpeechRecognition error:', event);
 
       // Errores comunes: 'no-speech', 'audio-capture', 'not-allowed', 'aborted'
       if (error === 'not-allowed' || error === 'service-not-allowed') {
-        setSpeechError('No se pudo acceder al micrófono. Revisá permisos del navegador.');
+        setSpeechError('No se pudo acceder al micrófono. Revisá permisos del navegador (solo funciona en https o localhost).');
         recordingWantedRef.current = false;
         setIsRecording(false);
+        try {
+          recognition.stop();
+        } catch {
+          // ignore
+        }
         return;
       }
 
@@ -90,12 +96,20 @@ const App: React.FC = () => {
         setSpeechError('No se detectó un micrófono disponible.');
         recordingWantedRef.current = false;
         setIsRecording(false);
+        try {
+          recognition.stop();
+        } catch {
+          // ignore
+        }
         return;
       }
 
       if (error && error !== 'no-speech' && error !== 'aborted') {
         setSpeechError('Hubo un problema con el dictado por voz. Probá nuevamente.');
       }
+
+      // Para cualquier error, evitamos que intente re‑arrancar solo
+      recordingWantedRef.current = false;
     };
 
     recognitionRef.current = recognition;
