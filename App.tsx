@@ -104,7 +104,11 @@ const App: React.FC = () => {
         return;
       }
 
-      if (error && error !== 'no-speech' && error !== 'aborted') {
+      if (error === 'network') {
+        setSpeechError(
+          'No se pudo conectar al servicio de reconocimiento de voz. Puede que tu red, VPN o firewall lo estén bloqueando.'
+        );
+      } else if (error && error !== 'no-speech' && error !== 'aborted') {
         setSpeechError('Hubo un problema con el dictado por voz. Probá nuevamente.');
       }
 
